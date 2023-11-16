@@ -1,15 +1,15 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tyme/pages/demo_page.dart';
+import 'package:tyme/pages/main_page.dart';
 import 'package:tyme/pages/root_page.dart';
 
 typedef PathWidgetBuilder = Widget Function(BuildContext, GoRouterState);
 
 class Path {
   const Path(this.name, this.path, this.builder,
-      {this.openInSecondScreen = false});
+      {this.openInSecondScreen = false, this.icon});
 
   final String name;
 
@@ -18,21 +18,34 @@ class Path {
   final PathWidgetBuilder builder;
 
   final bool openInSecondScreen;
+
+  final Widget? icon;
 }
 
 class TymeRouteConfiguration {
-  static const initial = '/home';
+  static const initial = '/tyme/home';
 
-  static List<Path> paths = [
+  static List<Path> navPaths = [
     Path(
       'Home',
-      '/home',
+      '/tyme/home',
       (context, state) => const DemoPage(),
       openInSecondScreen: false,
+      icon: const Icon(Icons.home),
     ),
     Path(
       'Chat',
-      '/chat',
+      '/tyme/chat',
+      (context, state) => const DemoPage(),
+      openInSecondScreen: false,
+      icon: const Icon(Icons.chat),
+    ),
+  ];
+
+  static List<Path> rootPaths = [
+    Path(
+      'Demo',
+      '/demo',
       (context, state) => const DemoPage(),
       openInSecondScreen: false,
     ),
@@ -44,14 +57,28 @@ class TymeRouteConfiguration {
           return RootPage(child: child);
         },
         routes: [
-          ...List.of(paths).map((path) => GoRoute(
-              name: path.name,
-              pageBuilder: (context, state) {
-                return FadeTransitionPage(
-                    key: state.pageKey, child: path.builder(context, state));
+          ShellRoute(
+              builder:
+                  (BuildContext context, GoRouterState state, Widget child) {
+                return MainPage(child: child);
               },
-              path: path.path)),
+              routes: [
+                ...List.of(navPaths).map((path) {
+                  return GoRoute(
+                      name: path.name,
+                      path: path.path,
+                      pageBuilder: (context, state) => FadeTransitionPage(
+                          key: state.pageKey, child: const DemoPage()));
+                })
+              ])
         ]),
+    ...List.of(rootPaths).map((path) {
+      return GoRoute(
+          name: path.name,
+          path: path.path,
+          pageBuilder: (context, state) =>
+              FadeTransitionPage(key: state.pageKey, child: const DemoPage()));
+    }),
   ]);
 }
 

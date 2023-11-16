@@ -10,27 +10,6 @@ class RootPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: child,
-      ),
-      bottomNavigationBar: NavigationBar(
-        onDestinationSelected: (index) {
-          GoRouter.of(context).go(TymeRouteConfiguration.paths[index].path);
-        },
-        selectedIndex: TymeRouteConfiguration.paths.indexWhere((element) =>
-            element.path ==
-            GoRouter.of(context).routeInformationProvider.value.uri.path),
-        destinations: [
-          ...List.of(TymeRouteConfiguration.paths).map((path) {
-            return NavigationDestination(
-              icon: const Icon(Icons.home),
-              label: path.name,
-            );
-          })
-        ],
-      ),
-    );
     return child;
   }
 }
