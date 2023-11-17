@@ -81,6 +81,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.6"
+  event_bus:
+    dependency: transitive
+    description:
+      name: event_bus
+      sha256: "44baa799834f4c803921873e7446a2add0f3efa45e101a054b1f0ab9b95f8edc"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0"
   fake_async:
     dependency: transitive
     description:
@@ -205,6 +213,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.10.0"
+  mqtt5_client:
+    dependency: "direct main"
+    description:
+      name: mqtt5_client
+      sha256: "50eab5dcc98129a5d19c32bdb009dbef6699a6ff8a43ae48e90afba547647faa"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.3"
   nested:
     dependency: transitive
     description:
