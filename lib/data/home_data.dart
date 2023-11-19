@@ -64,7 +64,7 @@ enum ServerStatus {
 
 class HomeData with ChangeNotifier {
   final List<Server> _servers = [
-    Server("server1", "", ServerStatus.unknown, 0, 0),
+    Server("server1", "127.0.0.1", ServerStatus.unknown, 0, 0),
   ];
 
   List<Server> get servers => _servers;

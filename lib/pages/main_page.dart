@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../main.dart';
 import '../routers.dart';
 
 class MainPage extends StatelessWidget {
@@ -12,9 +13,9 @@ class MainPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: child,
-      ),
+      body:  Center(
+          child: child,
+        ),
       bottomNavigationBar: NavigationBar(
         onDestinationSelected: (index) {
           GoRouter.of(context).go(TymeRouteConfiguration.navPaths[index].path);

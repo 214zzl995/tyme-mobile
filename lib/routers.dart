@@ -2,14 +2,18 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tyme/pages/demo_page.dart';
+import 'package:tyme/pages/home_page.dart';
 import 'package:tyme/pages/main_page.dart';
 import 'package:tyme/pages/root_page.dart';
+
+// https://github.com/flutter/packages/blob/main/packages/go_router/example/lib/others/custom_stateful_shell_route.dart
+// stateful_shell_route with animation
 
 typedef PathWidgetBuilder = Widget Function(BuildContext, GoRouterState);
 
 class Path {
-  const Path(this.name, this.path, this.builder,
-      {this.openInSecondScreen = false, this.icon});
+  Path(this.name, this.path, this.builder,
+      {this.openInSecondScreen = false, this.icon, this.navigatorKey});
 
   final String name;
 
@@ -20,23 +24,25 @@ class Path {
   final bool openInSecondScreen;
 
   final Widget? icon;
+
+  final GlobalKey<NavigatorState>? navigatorKey;
 }
 
 class TymeRouteConfiguration {
-  static const initial = '/tyme/home';
+  static const initial = '/home';
 
   static List<Path> navPaths = [
     Path(
       'Home',
-      '/tyme/home',
-      (context, state) => const DemoPage(),
+      '/home',
+          (context, state) => const HomePage(),
       openInSecondScreen: false,
       icon: const Icon(Icons.home),
     ),
     Path(
       'Chat',
-      '/tyme/chat',
-      (context, state) => const DemoPage(),
+      '/chat',
+          (context, state) => const DemoPage(),
       openInSecondScreen: false,
       icon: const Icon(Icons.chat),
     ),
@@ -46,7 +52,7 @@ class TymeRouteConfiguration {
     Path(
       'Demo',
       '/demo',
-      (context, state) => const DemoPage(),
+          (context, state) => const DemoPage(),
       openInSecondScreen: false,
     ),
   ];
@@ -67,8 +73,10 @@ class TymeRouteConfiguration {
                   return GoRoute(
                       name: path.name,
                       path: path.path,
-                      pageBuilder: (context, state) => FadeTransitionPage(
-                          key: state.pageKey, child: const DemoPage()));
+                      pageBuilder: (context, state) =>
+                          FadeTransitionPage(
+                              key: state.pageKey,
+                              child: path.builder(context, state)));
                 })
               ])
         ]),
@@ -81,6 +89,7 @@ class TymeRouteConfiguration {
     }),
   ]);
 }
+
 
 class FadeTransitionPage extends CustomTransitionPage<void> {
   /// Creates a [SlideUpFadeTransitionPage].
