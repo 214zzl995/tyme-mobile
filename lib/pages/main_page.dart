@@ -1,21 +1,28 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
-import '../main.dart';
 import '../routers.dart';
+import 'package:collection/collection.dart';
 
 class MainPage extends StatelessWidget {
-  const MainPage({super.key, required this.child});
+  const MainPage({
+    required this.navigationShell,
+    required this.children,
+    Key? key,
+  }) : super(key: key ?? const ValueKey<String>('ScaffoldWithNavBar'));
 
-  final Widget child;
+  final StatefulNavigationShell navigationShell;
+
+  /// The children (branch Navigators) to display in a custom container
+  /// ([AnimatedBranchContainer]).
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body:  Center(
-          child: child,
-        ),
+      body: AnimatedBranchContainer(
+        currentIndex: navigationShell.currentIndex,
+        children: children,
+      ),
       bottomNavigationBar: NavigationBar(
         onDestinationSelected: (index) {
           GoRouter.of(context).go(TymeRouteConfiguration.navPaths[index].path);
@@ -34,4 +41,38 @@ class MainPage extends StatelessWidget {
       ),
     );
   }
+}
+
+class AnimatedBranchContainer extends StatelessWidget {
+  /// Creates a AnimatedBranchContainer
+  const AnimatedBranchContainer(
+      {super.key, required this.currentIndex, required this.children});
+
+  /// The index (in [children]) of the branch Navigator to display.
+  final int currentIndex;
+
+  /// The children (branch Navigators) to display in this container.
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+        children: children.mapIndexed(
+      (int index, Widget navigator) {
+        return AnimatedOpacity(
+          opacity: index == currentIndex ? 1 : 0,
+          duration: const Duration(milliseconds: 200),
+          child: _branchNavigatorWrapper(index, navigator),
+        );
+      },
+    ).toList());
+  }
+
+  Widget _branchNavigatorWrapper(int index, Widget navigator) => IgnorePointer(
+        ignoring: index != currentIndex,
+        child: TickerMode(
+          enabled: index == currentIndex,
+          child: navigator,
+        ),
+      );
 }

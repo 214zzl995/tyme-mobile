@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tyme/pages/demo_page.dart';
@@ -35,14 +34,14 @@ class TymeRouteConfiguration {
     Path(
       'Home',
       '/home',
-          (context, state) => const HomePage(),
+      (context, state) => const HomePage(),
       openInSecondScreen: false,
       icon: const Icon(Icons.home),
     ),
     Path(
       'Chat',
       '/chat',
-          (context, state) => const DemoPage(),
+      (context, state) => const DemoPage(),
       openInSecondScreen: false,
       icon: const Icon(Icons.chat),
     ),
@@ -52,7 +51,7 @@ class TymeRouteConfiguration {
     Path(
       'Demo',
       '/demo',
-          (context, state) => const DemoPage(),
+      (context, state) => const DemoPage(),
       openInSecondScreen: false,
     ),
   ];
@@ -63,22 +62,28 @@ class TymeRouteConfiguration {
           return RootPage(child: child);
         },
         routes: [
-          ShellRoute(
-              builder:
-                  (BuildContext context, GoRouterState state, Widget child) {
-                return MainPage(child: child);
+          StatefulShellRoute(
+              builder: (BuildContext context, GoRouterState state,
+                  StatefulNavigationShell navigationShell) {
+                return navigationShell;
               },
-              routes: [
+              branches: [
                 ...List.of(navPaths).map((path) {
-                  return GoRoute(
-                      name: path.name,
-                      path: path.path,
-                      pageBuilder: (context, state) =>
-                          FadeTransitionPage(
-                              key: state.pageKey,
-                              child: path.builder(context, state)));
+                  return StatefulShellBranch(routes: <RouteBase>[
+                    GoRoute(
+                        name: path.name,
+                        path: path.path,
+                        pageBuilder: (context, state) => FadeTransitionPage(
+                            key: state.pageKey,
+                            child: path.builder(context, state)))
+                  ]);
                 })
-              ])
+              ],
+              navigatorContainerBuilder: (BuildContext context,
+                  StatefulNavigationShell navigationShell,
+                  List<Widget> children) {
+                return MainPage(navigationShell: navigationShell, children: children);
+              })
         ]),
     ...List.of(rootPaths).map((path) {
       return GoRoute(
@@ -89,7 +94,6 @@ class TymeRouteConfiguration {
     }),
   ]);
 }
-
 
 class FadeTransitionPage extends CustomTransitionPage<void> {
   /// Creates a [SlideUpFadeTransitionPage].

@@ -8,9 +8,7 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: PageStorage(
-      bucket: PageStorageBucketProvider.of(context)!.bucket,
-      child: CustomScrollView(
+      body: CustomScrollView(
         key: const PageStorageKey("home_page_scroll_view"),
         controller: ScrollController(),
         slivers: <Widget>[
@@ -33,15 +31,13 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
-    ));
+    );
   }
 
   Widget _buildServerCard(BuildContext context) {
     return Card(
       child: InkWell(
-        onTap: () {
-
-        },
+        onTap: () {},
         child: const Card(
           child: ListTile(
             leading: Icon(Icons.home),
@@ -52,5 +48,3 @@ class HomePage extends StatelessWidget {
     );
   }
 }
-
-
