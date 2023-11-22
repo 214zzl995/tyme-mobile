@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -34,6 +35,8 @@ StreamController<ReceivedNotification>.broadcast();
 
 final StreamController<String?> selectNotificationStream = StreamController<String?>.broadcast();
 
+const MethodChannel platform = MethodChannel('leri.dev/tyme');
+
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse notificationResponse) {
   // ignore: avoid_print
@@ -61,7 +64,6 @@ class ReceivedNotification {
   final String? payload;
 }
 
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _configureLocalTimeZone();
@@ -69,11 +71,15 @@ Future<void> main() async {
   final NotificationAppLaunchDetails? notificationAppLaunchDetails = !kIsWeb && Platform.isLinux
       ? null
       : await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
+
   String initialRoute = "/home";
   if (notificationAppLaunchDetails?.didNotificationLaunchApp ?? false) {
     selectedNotificationPayload = notificationAppLaunchDetails!.notificationResponse?.payload;
     initialRoute = "/chat";
   }
+
+  //暂时没用
+  debugPrint("initialRoute: $initialRoute");
 
   const AndroidInitializationSettings initializationSettingsAndroid =
   AndroidInitializationSettings('app_icon');

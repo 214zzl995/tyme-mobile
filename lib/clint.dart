@@ -169,3 +169,7 @@ Future<void> _showNotification() async {
   await flutterLocalNotificationsPlugin
       .show(id++, 'plain title', 'plain body', notificationDetails, payload: 'item x');
 }
+
+
+
+
