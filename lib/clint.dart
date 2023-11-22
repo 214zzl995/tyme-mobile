@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
@@ -34,7 +35,6 @@ class Clint {
       debugPrint('EXAMPLE::Subscription confirmed for topic $topic');
     };
 
-
     connect();
   }
 
@@ -44,16 +44,21 @@ class Clint {
       mqttClint.subscribe("system/#", MqttQos.atLeastOnce);
       mqttClint.updates.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         final recMess = c[0].payload as MqttPublishMessage;
-        final pt = MqttUtilities.bytesToStringAsString(recMess.payload.message!);
+        final pt =
+            MqttUtilities.bytesToStringAsString(recMess.payload.message!);
         _showNotification();
         debugPrint(
-            'EXAMPLE::Change notification:: topic is <${c[0].topic}>, payload is <-- $pt -->');
-
+            'ALL::Change notification:: topic is <${c[0].topic}>, payload is <-- $pt -->');
       });
     } on Exception catch (e) {
       debugPrint('EXAMPLE::client exception - $e');
       mqttClint.disconnect();
     }
+  }
+
+  /// 获取特定topic的Stream
+  Stream<List<MqttReceivedMessage<MqttMessage>>> msgByTopic(String topic) {
+    return mqttClint.updates.where((event) => event[0].topic == topic);
   }
 
   void disconnect() {
@@ -86,8 +91,6 @@ class Clint {
   void pong() {
     debugPrint('EXAMPLE::Ping response client callback invoked');
   }
-
-
 }
 
 setCertificate() {
@@ -158,18 +161,15 @@ rMKWaBFLmfK/AHNF4ZihwPGOc7w6UHczBZXH5RFzJNnww+WnKuTPI0HfnVH8lg==
 int id = 0;
 
 Future<void> _showNotification() async {
-  const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
-      'your channel id', 'your channel name',
-      channelDescription: 'your channel description',
-      importance: Importance.max,
-      priority: Priority.high,
-      ticker: 'ticker');
+  const AndroidNotificationDetails androidNotificationDetails =
+      AndroidNotificationDetails('your channel id', 'your channel name',
+          channelDescription: 'your channel description',
+          importance: Importance.max,
+          priority: Priority.high,
+          ticker: 'ticker');
   const NotificationDetails notificationDetails =
-  NotificationDetails(android: androidNotificationDetails);
-  await flutterLocalNotificationsPlugin
-      .show(id++, 'plain title', 'plain body', notificationDetails, payload: 'item x');
+      NotificationDetails(android: androidNotificationDetails);
+  await flutterLocalNotificationsPlugin.show(
+      id++, 'plain title', 'plain body', notificationDetails,
+      payload: 'item x');
 }
-
-
-
-
