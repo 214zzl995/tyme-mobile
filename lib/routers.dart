@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tyme/pages/chat_page.dart';
 import 'package:tyme/pages/demo_page.dart';
 import 'package:tyme/pages/home_page.dart';
 import 'package:tyme/pages/main_page.dart';
@@ -41,7 +42,7 @@ class TymeRouteConfiguration {
     Path(
       'Chat',
       '/chat',
-      (context, state) => const DemoPage(),
+      (context, state) => const ChatPage(),
       openInSecondScreen: false,
       icon: const Icon(Icons.chat),
     ),

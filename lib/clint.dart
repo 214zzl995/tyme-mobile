@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -6,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:mqtt5_client/mqtt5_server_client.dart';
+import 'package:rxdart/rxdart.dart';
 
 import 'main.dart';
 
@@ -58,7 +60,14 @@ class Clint {
 
   /// 获取特定topic的Stream
   Stream<List<MqttReceivedMessage<MqttMessage>>> msgByTopic(String topic) {
-    return mqttClint.updates.where((event) => event[0].topic == topic);
+    MqttTopicFilter topicFilter = MqttTopicFilter(topic, mqttClint.updates);
+    return topicFilter.updates
+        .startWithMany([]).scan<List<MqttReceivedMessage<MqttMessage>>>(
+      (accumulatedMessages, newMessages, _) {
+        return [...accumulatedMessages, ...newMessages];
+      },
+      [],
+    );
   }
 
   void disconnect() {

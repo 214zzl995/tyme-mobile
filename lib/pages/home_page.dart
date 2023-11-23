@@ -12,18 +12,12 @@ class HomePage extends StatelessWidget {
         slivers: <Widget>[
           const SliverAppBar.large(
             leading: Icon(Icons.home),
-            title: Text('Home Page'),
+            title: Text('Home'),
           ),
           SliverList(
             delegate: SliverChildListDelegate(
               <Widget>[
-                ...List.generate(
-                    100,
-                    (index) => ListTile(
-                          title: Text('Item $index'),
-                        ))
 
-                // Add more items here
               ],
             ),
           ),
