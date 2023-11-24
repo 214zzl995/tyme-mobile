@@ -9,22 +9,29 @@ import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:mqtt5_client/mqtt5_server_client.dart';
 import 'package:rxdart/rxdart.dart';
 
-import 'main.dart';
+import '../main.dart';
 
-class Clint {
+class Clint extends ChangeNotifier {
   final bool topicNotified = false;
 
   final mqttClint = MqttServerClient.withPort(
       'k37bbe35.ala.cn-hangzhou.emqxsl.cn', 'flutter_client', 8883);
 
-  Clint() {
-    debugPrint('EXAMPLE::Mosquitto client connecting....');
+  MqttConnectionState _clintStatus = MqttConnectionState.disconnected;
 
+  @override
+  void dispose() {
+    mqttClint.disconnect();
+    super.dispose();
+  }
+
+  Clint() {
     mqttClint.securityContext = setCertificate();
 
     final connMess = MqttConnectMessage()
         .withClientIdentifier('flutter_client')
-        .startClean();
+        .startClean()
+        .authenticateAs("leri", "R7ddsQxAGchQPQB");
 
     mqttClint.connectionMessage = connMess;
     mqttClint.keepAlivePeriod = 60;
@@ -42,18 +49,17 @@ class Clint {
 
   void connect() async {
     try {
-      await mqttClint.connect("leri", "R7ddsQxAGchQPQB");
+      _clintStatus = MqttConnectionState.connecting;
+      notifyListeners();
+      await mqttClint.connect();
       mqttClint.subscribe("system/#", MqttQos.atLeastOnce);
       mqttClint.updates.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         final recMess = c[0].payload as MqttPublishMessage;
-        final pt =
-            MqttUtilities.bytesToStringAsString(recMess.payload.message!);
+        final pt = MqttUtilities.bytesToStringAsString(recMess.payload.message!);
         _showNotification();
-        debugPrint(
-            'ALL::Change notification:: topic is <${c[0].topic}>, payload is <-- $pt -->');
       });
     } on Exception catch (e) {
-      debugPrint('EXAMPLE::client exception - $e');
+      debugPrint('tyme::client exception - $e');
       mqttClint.disconnect();
     }
   }
@@ -76,30 +82,35 @@ class Clint {
 
   void onDisconnected() {
     debugPrint(
-        'EXAMPLE::OnDisconnected client callback - Client disconnection');
-    if (mqttClint.connectionStatus!.disconnectionOrigin ==
-        MqttDisconnectionOrigin.solicited) {
+        'tyme::client::OnDisconnected 客户端回调 - 客户端断开连接');
+    if (mqttClint.connectionStatus!.disconnectionOrigin == MqttDisconnectionOrigin.solicited) {
       if (topicNotified) {
         debugPrint(
-            'EXAMPLE::OnDisconnected callback is solicited, topic has been notified - this is correct');
+            'tyme::client::OnDisconnected 回调是主动的，主题已被通知');
       } else {
         debugPrint(
-            'EXAMPLE::OnDisconnected callback is solicited, topic has NOT been notified - this is an ERROR');
+            'tyme::client::OnDisconnected 回调是主动的，主题尚未被通知');
       }
     }
-    exit(-1);
+    _clintStatus = connectionStatus!.state;
+    notifyListeners();
   }
 
   /// The successful connect callback
   void onConnected() {
-    debugPrint(
-        'EXAMPLE::OnConnected client callback - Client connection was sucessful');
+    _clintStatus = connectionStatus!.state;
+    notifyListeners();
+    debugPrint("tyme::client::OnConnected 客户端回调 - 客户端连接成功当前状态: $_clintStatus");
   }
 
   /// Pong callback
   void pong() {
-    debugPrint('EXAMPLE::Ping response client callback invoked');
+    debugPrint('tyme::client::Ping response client callback invoked');
   }
+
+  MqttConnectionState get clintStatus => _clintStatus;
+
+  MqttConnectionStatus? get connectionStatus => mqttClint.connectionStatus;
 }
 
 setCertificate() {

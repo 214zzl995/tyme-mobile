@@ -35,7 +35,9 @@ StreamController<ReceivedNotification>.broadcast();
 
 final StreamController<String?> selectNotificationStream = StreamController<String?>.broadcast();
 
-const MethodChannel platform = MethodChannel('leri.dev/tyme');
+const MethodChannel platform = MethodChannel('leri.dev/tyme.drawable');
+
+
 
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse notificationResponse) {
@@ -66,6 +68,7 @@ class ReceivedNotification {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await _configureLocalTimeZone();
 
   final NotificationAppLaunchDetails? notificationAppLaunchDetails = !kIsWeb && Platform.isLinux

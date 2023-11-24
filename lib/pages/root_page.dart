@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../clint.dart';
+import '../data/clint.dart';
+import '../utils/log_cat_utils.dart';
 
 class RootPage extends StatelessWidget {
   const RootPage({super.key, required this.child});
@@ -10,7 +11,7 @@ class RootPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Provider(
+    return ChangeNotifierProvider(
       create: (_) => Clint(),
       lazy: false,
       child: child,
