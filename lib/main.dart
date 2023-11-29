@@ -7,12 +7,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/adapters.dart';
+import 'package:provider/provider.dart';
 import 'package:tyme/routers.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-FlutterLocalNotificationsPlugin();
+    FlutterLocalNotificationsPlugin();
 
 String? selectedNotificationPayload;
 
@@ -31,13 +34,12 @@ const String darwinNotificationCategoryPlain = 'plainCategory';
 /// Streams are created so that app can respond to notification-related events
 /// since the plugin is initialised in the `main` function
 final StreamController<ReceivedNotification> didReceiveLocalNotificationStream =
-StreamController<ReceivedNotification>.broadcast();
+    StreamController<ReceivedNotification>.broadcast();
 
-final StreamController<String?> selectNotificationStream = StreamController<String?>.broadcast();
+final StreamController<String?> selectNotificationStream =
+    StreamController<String?>.broadcast();
 
 const MethodChannel platform = MethodChannel('leri.dev/tyme.drawable');
-
-
 
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse notificationResponse) {
@@ -47,10 +49,10 @@ void notificationTapBackground(NotificationResponse notificationResponse) {
       ' payload: ${notificationResponse.payload}');
   if (notificationResponse.input?.isNotEmpty ?? false) {
     // ignore: avoid_print
-    print('notification action tapped with input: ${notificationResponse.input}');
+    print(
+        'notification action tapped with input: ${notificationResponse.input}');
   }
 }
-
 
 class ReceivedNotification {
   ReceivedNotification({
@@ -71,13 +73,15 @@ Future<void> main() async {
 
   await _configureLocalTimeZone();
 
-  final NotificationAppLaunchDetails? notificationAppLaunchDetails = !kIsWeb && Platform.isLinux
+  final NotificationAppLaunchDetails? notificationAppLaunchDetails = !kIsWeb &&
+          Platform.isLinux
       ? null
       : await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
 
   String initialRoute = "/home";
   if (notificationAppLaunchDetails?.didNotificationLaunchApp ?? false) {
-    selectedNotificationPayload = notificationAppLaunchDetails!.notificationResponse?.payload;
+    selectedNotificationPayload =
+        notificationAppLaunchDetails!.notificationResponse?.payload;
     initialRoute = "/chat";
   }
 
@@ -85,10 +89,10 @@ Future<void> main() async {
   debugPrint("initialRoute: $initialRoute");
 
   const AndroidInitializationSettings initializationSettingsAndroid =
-  AndroidInitializationSettings('app_icon');
+      AndroidInitializationSettings('app_icon');
 
   final List<DarwinNotificationCategory> darwinNotificationCategories =
-  <DarwinNotificationCategory>[
+      <DarwinNotificationCategory>[
     DarwinNotificationCategory(
       darwinNotificationCategoryText,
       actions: <DarwinNotificationAction>[
@@ -134,11 +138,13 @@ Future<void> main() async {
 
   /// Note: permissions aren't requested here just to demonstrate that can be
   /// done later
-  final DarwinInitializationSettings initializationSettingsDarwin = DarwinInitializationSettings(
+  final DarwinInitializationSettings initializationSettingsDarwin =
+      DarwinInitializationSettings(
     requestAlertPermission: false,
     requestBadgePermission: false,
     requestSoundPermission: false,
-    onDidReceiveLocalNotification: (int id, String? title, String? body, String? payload) async {
+    onDidReceiveLocalNotification:
+        (int id, String? title, String? body, String? payload) async {
       didReceiveLocalNotificationStream.add(
         ReceivedNotification(
           id: id,
@@ -150,7 +156,8 @@ Future<void> main() async {
     },
     notificationCategories: darwinNotificationCategories,
   );
-  final LinuxInitializationSettings initializationSettingsLinux = LinuxInitializationSettings(
+  final LinuxInitializationSettings initializationSettingsLinux =
+      LinuxInitializationSettings(
     defaultActionName: 'Open notification',
     defaultIcon: AssetsLinuxIcon('assets/icons/app_icon.png'),
   );
@@ -162,7 +169,8 @@ Future<void> main() async {
   );
   await flutterLocalNotificationsPlugin.initialize(
     initializationSettings,
-    onDidReceiveNotificationResponse: (NotificationResponse notificationResponse) {
+    onDidReceiveNotificationResponse:
+        (NotificationResponse notificationResponse) {
       switch (notificationResponse.notificationResponseType) {
         case NotificationResponseType.selectedNotification:
           selectNotificationStream.add(notificationResponse.payload);
@@ -177,6 +185,7 @@ Future<void> main() async {
     onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
   );
 
+  await Hive.initFlutter();
 
   runApp(const MyApp());
 }
@@ -186,15 +195,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-        supportedLocales: const [Locale("zh", "CN"), Locale("en", "US")],
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        routerConfig: TymeRouteConfiguration.routers,
-      );
+    return ValueListenableBuilder(
+      valueListenable: Hive.box('clint').listenable(),
+      builder: (context, box, widget) {
+        debugPrint("themeMode: ${box.get('clint_param')}");
+        return MaterialApp.router(
+          supportedLocales: const [Locale("zh", "CN"), Locale("en", "US")],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          routerConfig: TymeRouteConfiguration.routers,
+        );
+      },
+    );
   }
 }
 
@@ -206,6 +221,3 @@ Future<void> _configureLocalTimeZone() async {
   final String timeZoneName = await FlutterTimezone.getLocalTimezone();
   tz.setLocalLocation(tz.getLocation(timeZoneName));
 }
-
-
-
