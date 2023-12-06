@@ -44,16 +44,6 @@ class Server {
     );
   }
 
-
-  @override
-  // TODO: implement hashCode
-  int get hashCode => super.hashCode + time;
-
-  @override
-  bool operator ==(Object other) {
-    // TODO: implement ==
-    return super == other;
-  }
 }
 
 enum ServerStatus {

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -17,7 +19,13 @@ class HomePage extends StatelessWidget {
           SliverList(
             delegate: SliverChildListDelegate(
               <Widget>[
-
+                ElevatedButton(
+                  onPressed: () {
+                    // Hive.box('tyme_clint_config').delete("clint_param");
+                    GoRouter.of(context).goNamed("Guide");
+                  },
+                  child: const Text('Demo'),
+                ),
               ],
             ),
           ),

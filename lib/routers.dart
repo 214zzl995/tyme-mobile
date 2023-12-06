@@ -71,9 +71,10 @@ class TymeRouteConfiguration {
         initialLocation: clintParam == null ? initInitial : initial,
         routes: [
           ShellRoute(
-              builder:
+              pageBuilder:
                   (BuildContext context, GoRouterState state, Widget child) {
-                return RootPage(child: child);
+                return FadeTransitionPage(
+                    key: state.pageKey, child: RootPage(child: child));
               },
               routes: [
                 StatefulShellRoute(
@@ -87,10 +88,9 @@ class TymeRouteConfiguration {
                           GoRoute(
                               name: path.name,
                               path: path.path,
-                              pageBuilder: (context, state) =>
-                                  FadeTransitionPage(
-                                      key: state.pageKey,
-                                      child: path.builder(context, state)))
+                              builder: (context, state) {
+                                return path.builder(context, state);
+                              })
                         ]);
                       })
                     ],
@@ -105,8 +105,10 @@ class TymeRouteConfiguration {
             return GoRoute(
                 name: path.name,
                 path: path.path,
-                pageBuilder: (context, state) => FadeTransitionPage(
-                    key: state.pageKey, child: path.builder(context, state)));
+                pageBuilder: (context, state) {
+                  return FadeTransitionPage(
+                      key: state.pageKey, child: path.builder(context, state));
+                });
           }),
         ]);
   }

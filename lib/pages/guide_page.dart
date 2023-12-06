@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../components/slide_fade_transition.dart';
+import '../data/clint_param.dart';
 
 class GuidePage extends StatefulWidget {
   const GuidePage({super.key});
@@ -23,7 +25,15 @@ class GuidePageState extends State<GuidePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
+        body: GestureDetector(
+      onTap: () {
+        FocusScopeNode currentFocus = FocusScope.of(context);
+
+        if (!currentFocus.hasPrimaryFocus) {
+          currentFocus.unfocus();
+        }
+      },
+      child: Container(
         color: Theme.of(context).colorScheme.background,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
@@ -64,7 +74,7 @@ class GuidePageState extends State<GuidePage>
           ],
         ),
       ),
-    );
+    ));
   }
 
   @override
@@ -85,16 +95,14 @@ class GuideChatDemo extends StatelessWidget {
     return Column(
       children: [
         _buildShowChatCard(context, false, "# **Hello**"),
-        _buildShowChatCard(context, true, "### Fuck You 😊"),
-        _buildShowChatCard(context, false,
-            '''
-            ## **系统信息**：
-            - CPU使用率: 23%
-            - 总内存: 8.00 GB
-            - 已使用内存: 3.25 GB
-            - 内存使用率: 40%
-            '''
-        ),
+        _buildShowChatCard(context, true, "😊"),
+        _buildShowChatCard(context, false, '''
+## System Information:
+- CPU Usage: 23%
+- Total Memory: 8.00 GB
+- Used Memory: 3.25 GB
+- Memory Usage: 40%
+            '''),
         _buildGetStartButton(context)
       ],
     );
@@ -171,6 +179,141 @@ class GuideSetting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container();
+    final clintParamListenable = ValueNotifier(ClintParam());
+
+    return ValueListenableBuilder(
+        valueListenable: clintParamListenable,
+        builder: (context, clintParam, widget) {
+          debugPrint(clintParam.toString());
+          return Stack(
+            children: [
+              Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 40, vertical: 0),
+                  child: Column(
+                    children: [
+                      _buildSubmitButton(context, clintParam),
+                      Expanded(
+                          child: ListView(
+                        padding: const EdgeInsets.only(top: 5),
+                        children: [
+                          _buildSettingInput(
+                              context,
+                              "Broker",
+                              Icons.cloud_outlined,
+                              false,
+                              false,
+                              false, (value) {
+                            clintParamListenable.value =
+                                clintParam.copyWith(broker: value);
+                          }),
+                          _buildSettingInput(context, "Port",
+                              Icons.link_outlined, true, false, false, (value) {
+                            clintParamListenable.value = clintParam.copyWith(
+                                port: int.parse(value == "" ? "0" : value));
+                          }),
+                          _buildSettingInput(context, "ClintId",
+                              Icons.usb_outlined, false, false, false, (value) {
+                            clintParamListenable.value =
+                                clintParam.copyWith(clintId: value);
+                          }),
+                          _buildSettingInput(context, "Username",
+                              Icons.man_outlined, false, false, true, (value) {
+                            clintParamListenable.value =
+                                clintParam.copyWith(username: value);
+                          }),
+                          _buildSettingInput(context, "Password",
+                              Icons.password, false, true, true, (value) {
+                            clintParamListenable.value =
+                                clintParam.copyWith(password: value);
+                          }),
+                          //还有一个证书
+                        ],
+                      ))
+                    ],
+                  )),
+            ],
+          );
+        });
+  }
+
+  Widget _buildSubmitButton(BuildContext context, ClintParam clintParam) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        height: 50,
+        width: 150,
+        child: ElevatedButton.icon(
+          onPressed: clintParam.isComplete ? () {} : null,
+          icon: clintParam.isComplete
+              ? const Icon(Icons.check_circle_outlined)
+              : const Icon(Icons.error_outline_outlined),
+          label: const Text('Submit'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingInput(
+    BuildContext context,
+    String label,
+    IconData icon,
+    bool number,
+    bool password,
+    bool canNull,
+    ValueChanged<String> onChanged,
+  ) {
+    return Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 25,
+                ),
+                SizedBox(
+                  width: 25,
+                  child: canNull
+                      ? null
+                      : Text(
+                          "*",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700),
+                        ),
+                ),
+                Expanded(
+                  child: SizedBox(
+                      height: 55,
+                      child: TextField(
+                        obscureText: password,
+                        cursorOpacityAnimates: true,
+                        keyboardType:
+                            number ? TextInputType.number : TextInputType.text,
+                        inputFormatters: number
+                            ? [
+                                FilteringTextInputFormatter.allow(
+                                    RegExp(r'[0-9]')),
+                                LengthLimitingTextInputFormatter(5),
+                              ]
+                            : [],
+                        decoration: InputDecoration(
+                          border: const OutlineInputBorder(),
+                          labelText: label,
+                        ),
+                        onChanged: onChanged,
+                      )),
+                )
+              ],
+            )
+          ],
+        ));
   }
 }
