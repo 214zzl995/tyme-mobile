@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tyme/data/clint_param.dart';
 import 'package:tyme/pages/chat_page.dart';
 import 'package:tyme/pages/demo_page.dart';
+import 'package:tyme/pages/guide_page.dart';
 import 'package:tyme/pages/home_page.dart';
 import 'package:tyme/pages/main_page.dart';
 import 'package:tyme/pages/root_page.dart';
@@ -30,6 +32,7 @@ class Path {
 
 class TymeRouteConfiguration {
   static const initial = '/home';
+  static const initInitial = '/guide';
 
   static List<Path> navPaths = [
     Path(
@@ -55,45 +58,58 @@ class TymeRouteConfiguration {
       (context, state) => const DemoPage(),
       openInSecondScreen: false,
     ),
+    Path(
+      'Guide',
+      '/guide',
+      (context, state) => const GuidePage(),
+      openInSecondScreen: false,
+    ),
   ];
 
-  static final routers = GoRouter(initialLocation: initial, routes: [
-    ShellRoute(
-        builder: (BuildContext context, GoRouterState state, Widget child) {
-          return RootPage(child: child);
-        },
+  static routers(ClintParam? clintParam) {
+    return GoRouter(
+        initialLocation: clintParam == null ? initInitial : initial,
         routes: [
-          StatefulShellRoute(
-              builder: (BuildContext context, GoRouterState state,
-                  StatefulNavigationShell navigationShell) {
-                return navigationShell;
+          ShellRoute(
+              builder:
+                  (BuildContext context, GoRouterState state, Widget child) {
+                return RootPage(child: child);
               },
-              branches: [
-                ...List.of(navPaths).map((path) {
-                  return StatefulShellBranch(routes: <RouteBase>[
-                    GoRoute(
-                        name: path.name,
-                        path: path.path,
-                        pageBuilder: (context, state) => FadeTransitionPage(
-                            key: state.pageKey,
-                            child: path.builder(context, state)))
-                  ]);
-                })
-              ],
-              navigatorContainerBuilder: (BuildContext context,
-                  StatefulNavigationShell navigationShell,
-                  List<Widget> children) {
-                return MainPage(navigationShell: navigationShell, children: children);
-              })
-        ]),
-    ...List.of(rootPaths).map((path) {
-      return GoRoute(
-          name: path.name,
-          path: path.path,
-          pageBuilder: (context, state) =>
-              FadeTransitionPage(key: state.pageKey, child: const DemoPage()));
-    }),
-  ]);
+              routes: [
+                StatefulShellRoute(
+                    builder: (BuildContext context, GoRouterState state,
+                        StatefulNavigationShell navigationShell) {
+                      return navigationShell;
+                    },
+                    branches: [
+                      ...List.of(navPaths).map((path) {
+                        return StatefulShellBranch(routes: <RouteBase>[
+                          GoRoute(
+                              name: path.name,
+                              path: path.path,
+                              pageBuilder: (context, state) =>
+                                  FadeTransitionPage(
+                                      key: state.pageKey,
+                                      child: path.builder(context, state)))
+                        ]);
+                      })
+                    ],
+                    navigatorContainerBuilder: (BuildContext context,
+                        StatefulNavigationShell navigationShell,
+                        List<Widget> children) {
+                      return MainPage(
+                          navigationShell: navigationShell, children: children);
+                    })
+              ]),
+          ...List.of(rootPaths).map((path) {
+            return GoRoute(
+                name: path.name,
+                path: path.path,
+                pageBuilder: (context, state) => FadeTransitionPage(
+                    key: state.pageKey, child: path.builder(context, state)));
+          }),
+        ]);
+  }
 }
 
 class FadeTransitionPage extends CustomTransitionPage<void> {

@@ -5,17 +5,17 @@ part 'clint_param.g.dart';
 @HiveType(typeId: 1)
 class ClintParam {
   @HiveField(0)
-  late String broker;
+  String broker = "";
 
   @HiveField(1)
-  late int port;
+  int port = -1;
 
   @HiveField(2)
-  late String clintId;
+  String clintId = "";
 
   @HiveField(3)
-  late String username;
+  String username = "";
 
   @HiveField(4)
-  late String password;
+  String password = "";
 }

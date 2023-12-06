@@ -186,6 +186,15 @@ Future<void> main() async {
   );
 
   await Hive.initFlutter();
+  await Hive.openBox("tyme_clint_config");
+
+  //AppBar 好像会自己实现这段话 但是全局实现一下
+  if (Platform.isAndroid) {
+    SystemUiOverlayStyle style = const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+    );
+    SystemChrome.setSystemUIOverlayStyle(style);
+  }
 
   runApp(const MyApp());
 }
@@ -196,18 +205,20 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
-      valueListenable: Hive.box('clint').listenable(),
+      valueListenable: Hive.box('tyme_clint_config').listenable(),
       builder: (context, box, widget) {
-        debugPrint("themeMode: ${box.get('clint_param')}");
-        return MaterialApp.router(
-          supportedLocales: const [Locale("zh", "CN"), Locale("en", "US")],
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          routerConfig: TymeRouteConfiguration.routers,
-        );
+        return Provider(
+            create: (_) => box.get("clint_param"),
+            child: MaterialApp.router(
+              supportedLocales: const [Locale("zh", "CN"), Locale("en", "US")],
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              routerConfig:
+                  TymeRouteConfiguration.routers(Provider.of(context)),
+            ));
       },
     );
   }
