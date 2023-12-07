@@ -1,6 +1,12 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
+import 'package:tyme/data/clint_security_param.dart';
 
 import '../components/slide_fade_transition.dart';
 import '../data/clint_param.dart';
@@ -184,7 +190,6 @@ class GuideSetting extends StatelessWidget {
     return ValueListenableBuilder(
         valueListenable: clintParamListenable,
         builder: (context, clintParam, widget) {
-          debugPrint(clintParam.toString());
           return Stack(
             children: [
               Container(
@@ -227,7 +232,10 @@ class GuideSetting extends StatelessWidget {
                             clintParamListenable.value =
                                 clintParam.copyWith(password: value);
                           }),
-                          //还有一个证书
+                          _buildCrtFilePicker(context, clintParam, (value) {
+                            clintParamListenable.value =
+                                clintParam.copyWith(securityParam: value);
+                          }),
                         ],
                       ))
                     ],
@@ -245,7 +253,15 @@ class GuideSetting extends StatelessWidget {
         height: 50,
         width: 150,
         child: ElevatedButton.icon(
-          onPressed: clintParam.isComplete ? () {} : null,
+          onPressed: clintParam.isComplete
+              ? () {
+                  Hive.box('tyme_config')
+                      .put("clint_param", clintParam)
+                      .then((_) {
+                    GoRouter.of(context).goNamed("Home");
+                  });
+                }
+              : null,
           icon: clintParam.isComplete
               ? const Icon(Icons.check_circle_outlined)
               : const Icon(Icons.error_outline_outlined),
@@ -315,5 +331,77 @@ class GuideSetting extends StatelessWidget {
             )
           ],
         ));
+  }
+
+  Widget _buildCrtFilePicker(
+    BuildContext context,
+    ClintParam clintParam,
+    ValueChanged<ClintSecurityParam> onChanged,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.security_outlined,
+                size: 25,
+              ),
+              const SizedBox(
+                width: 25,
+              ),
+              Expanded(
+                child: SizedBox(
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        FilePickerResult? result =
+                            await FilePicker.platform.pickFiles(
+                          type: FileType.custom,
+                          allowedExtensions: ['crt'],
+                        );
+                        if (result != null) {
+                          File file = File(result.files.single.path!);
+                          String contents = await file.readAsString();
+                          String fileName = result.files.single.name;
+                          final securityParam = ClintSecurityParam(
+                              filename: fileName, fileContent: contents);
+                          onChanged(securityParam);
+                        } else {
+                          // User canceled the picker
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.all(12),
+                        elevation: 0,
+                        backgroundColor:
+                            Theme.of(context).colorScheme.secondaryContainer,
+                        side: BorderSide(
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                            width: 1),
+                      ),
+                      child: Text(
+                          clintParam.securityParam == null
+                              ? 'Select Crt File'
+                              : clintParam.securityParam!.filename,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: Theme.of(context).colorScheme.primary,
+                          )),
+                    )),
+              )
+            ],
+          )
+        ],
+      ),
+    );
   }
 }

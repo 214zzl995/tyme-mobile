@@ -1,47 +1,35 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'clint_param.dart';
+part of 'clint_security_param.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class ClintParamAdapter extends TypeAdapter<ClintParam> {
+class ClintSecurityParamAdapter extends TypeAdapter<ClintSecurityParam> {
   @override
-  final int typeId = 1;
+  final int typeId = 2;
 
   @override
-  ClintParam read(BinaryReader reader) {
+  ClintSecurityParam read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return ClintParam(
-      fields[0] as String,
-      fields[1] as int,
-      fields[2] as String,
-      fields[3] as String?,
-      fields[4] as String?,
-      fields[5] as ClintSecurityParam?,
+    return ClintSecurityParam(
+      filename: fields[0] as String,
+      fileContent: fields[1] as String,
     );
   }
 
   @override
-  void write(BinaryWriter writer, ClintParam obj) {
+  void write(BinaryWriter writer, ClintSecurityParam obj) {
     writer
-      ..writeByte(6)
-      ..writeByte(0)
-      ..write(obj.broker)
-      ..writeByte(1)
-      ..write(obj.port)
       ..writeByte(2)
-      ..write(obj.clintId)
-      ..writeByte(3)
-      ..write(obj.username)
-      ..writeByte(4)
-      ..write(obj.password)
-      ..writeByte(5)
-      ..write(obj.securityParam);
+      ..writeByte(0)
+      ..write(obj.filename)
+      ..writeByte(1)
+      ..write(obj.fileContent);
   }
 
   @override
@@ -50,7 +38,7 @@ class ClintParamAdapter extends TypeAdapter<ClintParam> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ClintParamAdapter &&
+      other is ClintSecurityParamAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

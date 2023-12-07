@@ -10,6 +10,8 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:provider/provider.dart';
+import 'package:tyme/data/clint_param.dart';
+import 'package:tyme/data/clint_security_param.dart';
 import 'package:tyme/routers.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -185,8 +187,7 @@ Future<void> main() async {
     onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
   );
 
-  await Hive.initFlutter();
-  await Hive.openBox("tyme_clint_config");
+  await _hiveInit();
 
   if (Platform.isAndroid) {
     SystemUiOverlayStyle style = const SystemUiOverlayStyle(
@@ -204,7 +205,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
-      valueListenable: Hive.box('tyme_clint_config').listenable(keys: ["clint_param"]),
+      valueListenable: Hive.box('tyme_config').listenable(keys: []),
       builder: (context, box, widget) {
         return MaterialApp.router(
           supportedLocales: const [Locale("zh", "CN"), Locale("en", "US")],
@@ -227,4 +228,12 @@ Future<void> _configureLocalTimeZone() async {
   tz.initializeTimeZones();
   final String timeZoneName = await FlutterTimezone.getLocalTimezone();
   tz.setLocalLocation(tz.getLocation(timeZoneName));
+}
+
+Future<void> _hiveInit() async {
+  Hive.registerAdapter(ClintParamAdapter());
+  Hive.registerAdapter(ClintSecurityParamAdapter());
+  await Hive.initFlutter();
+  await Hive.openBox("tyme_config");
+
 }

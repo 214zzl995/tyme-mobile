@@ -1,5 +1,7 @@
 import 'package:hive/hive.dart';
 
+import 'clint_security_param.dart';
+
 part 'clint_param.g.dart';
 
 @HiveType(typeId: 1)
@@ -14,15 +16,19 @@ class ClintParam {
   String clintId = "";
 
   @HiveField(3)
-  String username = "";
+  String? username;
 
   @HiveField(4)
-  String password = "";
+  String? password;
+
+  @HiveField(5)
+  ClintSecurityParam? securityParam;
 
   bool get isComplete =>
       broker != "" &&
       port != -1 &&
-      clintId != "" ;
+      clintId != "" &&
+      ((username != null) == (password != null));
 
   copyWith({
     String? broker,
@@ -30,6 +36,7 @@ class ClintParam {
     String? clintId,
     String? username,
     String? password,
+    ClintSecurityParam? securityParam,
   }) {
     return ClintParam(
       broker ?? this.broker,
@@ -37,6 +44,7 @@ class ClintParam {
       clintId ?? this.clintId,
       username ?? this.username,
       password ?? this.password,
+      securityParam ?? this.securityParam,
     );
   }
 
@@ -44,8 +52,8 @@ class ClintParam {
     this.broker = "",
     this.port = -1,
     this.clintId = "",
-    this.username = "",
-    this.password = "",
+    this.username,
+    this.password,
+    this.securityParam,
   ]);
-
 }
