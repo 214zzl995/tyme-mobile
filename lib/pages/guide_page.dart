@@ -307,7 +307,7 @@ class GuideSetting extends StatelessWidget {
                 ),
                 Expanded(
                   child: SizedBox(
-                      height: 55,
+                      height: 60,
                       child: TextField(
                         obscureText: password,
                         cursorOpacityAnimates: true,
@@ -355,7 +355,7 @@ class GuideSetting extends StatelessWidget {
               ),
               Expanded(
                 child: SizedBox(
-                    height: 55,
+                    height: 60,
                     child: ElevatedButton(
                       onPressed: () async {
                         FilePickerResult? result =
