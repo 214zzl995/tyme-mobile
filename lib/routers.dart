@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tyme/data/clint_param.dart';
@@ -7,6 +8,7 @@ import 'package:tyme/pages/guide_page.dart';
 import 'package:tyme/pages/home_page.dart';
 import 'package:tyme/pages/main_page.dart';
 import 'package:tyme/pages/root_page.dart';
+import 'package:tyme/pages/settings_page.dart';
 
 // https://github.com/flutter/packages/blob/main/packages/go_router/example/lib/others/custom_stateful_shell_route.dart
 // stateful_shell_route with animation
@@ -48,6 +50,13 @@ class TymeRouteConfiguration {
       (context, state) => const ChatPage(),
       openInSecondScreen: false,
       icon: const Icon(Icons.chat),
+    ),
+    Path(
+      'Settings',
+      '/settings',
+      (context, state) => const SettingsPage(),
+      openInSecondScreen: false,
+      icon: const Icon(Icons.settings),
     ),
   ];
 
