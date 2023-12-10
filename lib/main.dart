@@ -7,9 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/adapters.dart';
-import 'package:provider/provider.dart';
 import 'package:tyme/data/clint_param.dart';
 import 'package:tyme/data/clint_security_param.dart';
 import 'package:tyme/routers.dart';
@@ -188,6 +186,8 @@ Future<void> main() async {
   );
 
   await _hiveInit();
+  Timer.periodic(
+      Duration(seconds: 1), (timer) => print("Fuck y"));
 
   if (Platform.isAndroid) {
     SystemUiOverlayStyle style = const SystemUiOverlayStyle(
@@ -204,6 +204,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return ValueListenableBuilder(
       valueListenable: Hive.box('tyme_config').listenable(keys: []),
       builder: (context, box, widget) {

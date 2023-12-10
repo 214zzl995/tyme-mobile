@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
@@ -5,8 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:tyme/data/clint_param.dart';
 
 import '../data/clint.dart';
-import '../utils/log_cat_utils.dart';
-
 class RootPage extends StatelessWidget {
   const RootPage({super.key, required this.child});
 
@@ -14,6 +14,7 @@ class RootPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     final ClintParam? clintParam = Hive.box('tyme_config').get("clint_param");
     if (clintParam == null) {
       GoRouter.of(context).goNamed("Guide");

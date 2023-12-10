@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -30,6 +31,7 @@ class GuidePageState extends State<GuidePage>
 
   @override
   Widget build(BuildContext context) {
+    WidgetsFlutterBinding.ensureInitialized();
     return Scaffold(
         body: GestureDetector(
       onTap: () {
