@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:flutter/cupertino.dart';
 import 'package:hive/hive.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:nanoid/nanoid.dart';
@@ -28,10 +31,15 @@ class ChatMessage {
   MessageContent content = MessageContent();
 
   @HiveField(7)
-  String publish = "";
+  String sender = "";
 
   @HiveField(8)
   String receiver = "";
+
+  @override
+  String toString() {
+    return 'ChatMessage{id: $id, topic: $topic, retain: $retain, qos: $qos, mine: $mine, timestamp: $timestamp, content: $content, sender: $sender, receiver: $receiver}';
+  }
 }
 
 @HiveType(typeId: 4)
@@ -41,6 +49,11 @@ class Topic {
 
   @HiveField(1)
   String? header;
+
+  @override
+  String toString() {
+    return 'Topic{topic: $topic, header: $header}';
+  }
 }
 
 @HiveType(typeId: 5)
@@ -50,6 +63,11 @@ class MessageContent {
 
   @HiveField(1)
   String raw = "";
+
+  @override
+  String toString() {
+    return 'MessageContent{type: $type, raw: $raw}';
+  }
 }
 
 @HiveType(typeId: 6)
@@ -60,8 +78,9 @@ enum MessageType {
   json
 }
 
-extension ChatMqttMessage on MqttReceivedMessage<MqttPublishMessage> {
-  Object toChatMessage() {
+extension ChatMqttMessage on MqttReceivedMessage<MqttMessage> {
+  ChatMessage toChatMessage(String self) {
+    final payload = this.payload as MqttPublishMessage;
     final message = ChatMessage();
     message.id = nanoid();
     message.topic.topic = topic!;
@@ -69,19 +88,55 @@ extension ChatMqttMessage on MqttReceivedMessage<MqttPublishMessage> {
     message.qos = payload.header!.qos.index;
     message.timestamp = DateTime.now().millisecondsSinceEpoch;
 
-    final userProperty = payload.variableHeader!.userProperty;
+    final variableHeader = payload.variableHeader;
 
-    message.publish = userProperty
-            .firstWhere((element) => element.pairName == "publish")
-            .pairValue ??
-        "";
+    if (variableHeader == null) {
+      throw ArgumentError('payload.variableHeader is null');
+    }
 
-    message.receiver = userProperty
+    final userProperty = variableHeader.userProperty;
+
+    final sender = userProperty
+        .firstWhere((element) => element.pairName == "sender")
+        .pairValue;
+
+    if (sender == null) {
+      throw ArgumentError('Sender is null');
+    }
+
+    message.sender = sender;
+
+    final receiver = userProperty
             .firstWhere((element) => element.pairName == "receiver")
             .pairValue ??
         "";
 
-    message.mine = false;
+    message.receiver = receiver;
+
+    final contentType = variableHeader.contentType;
+
+    if (contentType == null) {
+      throw ArgumentError('ContentType is null');
+    }
+
+    final contentTypeList = contentType.split(";");
+    final type = contentTypeList[0];
+    final charset = (contentTypeList.length > 1
+        ? contentTypeList[1].substring(8)
+        : "utf-8");
+
+    final messageContent = MessageContent();
+    messageContent.raw = const Utf8Decoder().convert(payload.payload.message!);
+
+    if (type == "application/json") {
+      messageContent.type = MessageType.json;
+    } else if (type == "text/markdown") {
+      messageContent.type = MessageType.markDown;
+    }
+
+    message.content = messageContent;
+
+    message.mine = sender == self;
     return message;
   }
 }

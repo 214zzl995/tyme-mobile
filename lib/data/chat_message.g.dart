@@ -24,7 +24,7 @@ class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
       ..mine = fields[4] as bool
       ..timestamp = fields[5] as int
       ..content = fields[6] as MessageContent
-      ..publish = fields[7] as String
+      ..sender = fields[7] as String
       ..receiver = fields[8] as String;
   }
 
@@ -47,7 +47,7 @@ class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
       ..writeByte(6)
       ..write(obj.content)
       ..writeByte(7)
-      ..write(obj.publish)
+      ..write(obj.sender)
       ..writeByte(8)
       ..write(obj.receiver);
   }

@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:mqtt5_client/mqtt5_server_client.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:tyme/data/chat_message.dart';
 import 'package:tyme/data/clint_param.dart';
 import 'package:tyme/data/clint_security_param.dart';
 
@@ -63,10 +64,12 @@ class Clint extends ChangeNotifier {
       notifyListeners();
       await mqttClint.connect();
       mqttClint.subscribe("system/#", MqttQos.atLeastOnce);
+
       mqttClint.updates.listen((List<MqttReceivedMessage<MqttMessage>> c) {
-        final recMess = c[0].payload as MqttPublishMessage;
-        final pt =
-            MqttUtilities.bytesToStringAsString(recMess.payload.message!);
+        for (var message in c) {
+          final chatMessage = message.toChatMessage(mqttClint.clientIdentifier);
+          debugPrint(chatMessage.toString());
+        }
         _showNotification();
       });
     } on Exception catch (e) {
