@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 class HomePage extends StatelessWidget {
@@ -20,7 +21,6 @@ class HomePage extends StatelessWidget {
               <Widget>[
                 ElevatedButton(
                   onPressed: () {
-                    // Hive.box('tyme_clint_config').delete("clint_param");
                     GoRouter.of(context).goNamed("Guide");
                   },
                   child: const Text('Demo'),

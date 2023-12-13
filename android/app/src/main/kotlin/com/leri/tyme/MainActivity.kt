@@ -2,16 +2,19 @@ package com.leri.tyme
 
 import android.content.ContentResolver
 import android.content.Context
+import android.content.Intent
 import android.media.RingtoneManager
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
+
 class MainActivity : FlutterActivity() {
 
     companion object {
         const val FLUTTER_ANDROID_LOG_CHANNEL = "leri.dev/tyme.log"
+        const val FLUTTER_ANDROID_SYSTEM_CHANNEL = "leri.dev/tyme.system"
         const val FLUTTER_ANDROID_DRAWABLE_CHANNEL = "leri.dev/tyme.drawable"
     }
 
@@ -41,14 +44,32 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             FLUTTER_ANDROID_LOG_CHANNEL
         ).setMethodCallHandler { call, result ->
-                val tag: String = call.argument("tag") ?: "LogUtils"
-                val message: String = call.argument("msg") ?: "unknown log message"
-                when (call.method) {
-                    "logD" -> Log.d(tag, message)
-                    "logE" -> Log.e(tag, message)
-                }
-                result.success(null)
+            val tag: String = call.argument("tag") ?: "LogUtils"
+            val message: String = call.argument("msg") ?: "unknown log message"
+            when (call.method) {
+                "logD" -> Log.d(tag, message)
+                "logE" -> Log.e(tag, message)
             }
+            result.success(null)
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            FLUTTER_ANDROID_SYSTEM_CHANNEL
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "navigateToSystemHome" -> {
+                    val intent = Intent()
+                    intent.setAction(Intent.ACTION_MAIN)
+                    intent.addCategory(Intent.CATEGORY_HOME)
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                }
+
+                else -> result.notImplemented()
+            }
+            result.success(null)
+        }
     }
 
     private fun resourceToUriString(context: Context, resId: Int): String {

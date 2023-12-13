@@ -20,6 +20,8 @@ class Clint extends ChangeNotifier {
 
   MqttConnectionState _clintStatus = MqttConnectionState.disconnected;
 
+  bool _paramChange = false;
+
   @override
   void dispose() {
     mqttClint.disconnect();
@@ -118,6 +120,13 @@ class Clint extends ChangeNotifier {
   MqttConnectionState get clintStatus => _clintStatus;
 
   MqttConnectionStatus? get connectionStatus => mqttClint.connectionStatus;
+
+  bool get paramChange => _paramChange;
+
+  set paramChange(bool value) {
+    _paramChange = value;
+    notifyListeners();
+  }
 }
 
 setCertificate(ClintSecurityParam clintSecurityParam) {

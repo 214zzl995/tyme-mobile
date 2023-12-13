@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:provider/provider.dart';
-import 'package:tyme/data/clint.dart';
+import 'package:tyme/provider/clint.dart';
 
 class ChatPage extends StatelessWidget {
   const ChatPage({Key? key}) : super(key: key);
@@ -20,13 +20,17 @@ class ChatPage extends StatelessWidget {
             leading: Icon(Icons.chat),
             title: Text('Chat'),
           ),
-          SliverToBoxAdapter(
-              child: Center(
-                  child: Selector<Clint, MqttConnectionState>(
-                      builder: (context, state, child) {
-                        return _connecting(context);
-                      },
-                      selector: (context, state) => state.clintStatus))),
+          Selector<Clint, MqttConnectionState>(
+            builder: (context, state, child) {
+              if (state == MqttConnectionState.connected) {
+                return _chatList(context, scrollController);
+              } else {
+                return SliverToBoxAdapter(
+                    child: Center(child: _connecting(context)));
+              }
+            },
+            selector: (context, state) => state.clintStatus,
+          ),
         ],
       ),
     );
