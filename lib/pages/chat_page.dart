@@ -1,9 +1,13 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:provider/provider.dart';
 import 'package:tyme/provider/clint.dart';
+
+import '../components/detect_lifecycle.dart';
+import '../data/chat_message.dart';
 
 class ChatPage extends StatelessWidget {
   const ChatPage({Key? key}) : super(key: key);
@@ -69,35 +73,60 @@ class ChatPage extends StatelessWidget {
   }
 
   Widget _chatList(BuildContext context, ScrollController scrollController) {
-    return StreamProvider<List<MqttReceivedMessage<MqttMessage>>>(
+    return StreamProvider<List<ChatMessage>>(
       initialData: const [],
       create: (BuildContext context) =>
           context.read<Clint>().msgByTopic('system/#'),
-      child: Consumer<List<MqttReceivedMessage<MqttMessage>>>(
+      child: Consumer<List<ChatMessage>>(
         builder: (context, messages, child) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (scrollController.hasClients) {
-              scrollController.animateTo(
-                scrollController.position.maxScrollExtent,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOut,
-              );
-            }
-          });
-          return SliverList(
-            key: const PageStorageKey("chat_page_scroll_view"),
-            delegate: SliverChildListDelegate(
-              <Widget>[
-                ...messages.mapIndexed(
-                  (index, message) => ListTile(
-                    title: Text('Item $index'),
-                  ),
-                )
-              ],
+          return DetectLifecycle(
+            build:
+                (BuildContext context, AppLifecycleState state, Widget? child) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (scrollController.hasClients &&
+                    GoRouter.of(context)
+                            .routeInformationProvider
+                            .value
+                            .uri
+                            .path ==
+                        "/chat" &&
+                    state == AppLifecycleState.resumed) {
+                  scrollController.animateTo(
+                    scrollController.position.maxScrollExtent,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                  );
+                }
+              });
+              return child!;
+            },
+            child: SliverList(
+              key: const PageStorageKey("chat_page_scroll_view"),
+              delegate: SliverChildListDelegate(
+                <Widget>[
+                  ...messages.mapIndexed(
+                    (index, message) => ListTile(
+                      title: Text('Item $index'),
+                    ),
+                  )
+                ],
+              ),
             ),
           );
         },
       ),
     );
+  }
+
+  Widget _buildMessageCard(BuildContext context, ChatMessage message) {
+    /*return VisibilityDetector(
+        key: Key("unique key"),
+        onVisibilityChanged: (VisibilityInfo info) {
+          debugPrint("${info.visibleFraction} of my widget is visible");
+        },
+        child: Row(
+
+        ));*/
+    return Container();
   }
 }

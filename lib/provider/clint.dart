@@ -5,12 +5,14 @@ import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:hive/hive.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:mqtt5_client/mqtt5_server_client.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:tyme/data/chat_message.dart';
 import 'package:tyme/data/clint_param.dart';
 import 'package:tyme/data/clint_security_param.dart';
+import 'package:tyme/utils/crypto_utils.dart';
 
 import '../main.dart';
 
@@ -23,13 +25,39 @@ class Clint extends ChangeNotifier {
 
   bool _paramChange = false;
 
+  bool disposeState = false;
+
   @override
   void dispose() {
+    disposeState = true;
     mqttClint.disconnect();
     super.dispose();
   }
 
   Clint(ClintParam clintParam) {
+    init(clintParam);
+
+    mqttClint.onConnected = onConnected;
+    mqttClint.onDisconnected = onDisconnected;
+    mqttClint.onSubscribed = (topic) {
+      debugPrint('tyme::client::::Subscription confirmed for topic $topic');
+    };
+
+    connect(clintParam.subscribeTopic);
+  }
+
+  void restart([ClintParam? clintParam]) {
+    mqttClint.disconnect();
+    if (clintParam != null) {
+      init(clintParam);
+    }
+
+    connect(ClintParam.instance.subscribeTopic);
+  }
+
+  void init(ClintParam clintParam) {
+    ClintParam.instance.from(clintParam);
+
     mqttClint.port = clintParam.port;
     mqttClint.server = clintParam.broker;
     if (clintParam.securityParam != null) {
@@ -47,28 +75,31 @@ class Clint extends ChangeNotifier {
     mqttClint.connectionMessage = connMess;
     mqttClint.keepAlivePeriod = 60;
     mqttClint.secure = clintParam.securityParam != null;
-
-    mqttClint.onConnected = onConnected;
-    mqttClint.onDisconnected = onDisconnected;
-
-    mqttClint.onSubscribed = (topic) {
-      debugPrint('EXAMPLE::Subscription confirmed for topic $topic');
-    };
-
-    connect();
   }
 
-  void connect() async {
+  void connect(List<String> subscribeTopic) async {
     try {
       _clintStatus = MqttConnectionState.connecting;
       notifyListeners();
       await mqttClint.connect();
+
+      final mqttSubscriptionOption = MqttSubscriptionOption();
+
+      mqttSubscriptionOption.maximumQos = MqttQos.atLeastOnce;
+
+      final mqttSubscriptionList = subscribeTopic
+          .map((topic) => MqttSubscription(
+              MqttSubscriptionTopic(topic), mqttSubscriptionOption))
+          .toList();
+
       mqttClint.subscribe("system/#", MqttQos.atLeastOnce);
+
+      mqttClint.subscribeWithSubscriptionList(mqttSubscriptionList);
 
       mqttClint.updates.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         for (var message in c) {
-          final chatMessage = message.toChatMessage(mqttClint.clientIdentifier);
-          debugPrint(chatMessage.toString());
+          final chatMessage = message.toChatMessage();
+          chatMessage.insert();
         }
         _showNotification();
       });
@@ -79,10 +110,18 @@ class Clint extends ChangeNotifier {
   }
 
   /// 获取特定topic的Stream
-  Stream<List<MqttReceivedMessage<MqttMessage>>> msgByTopic(String topic) {
+  Stream<List<ChatMessage>> msgByTopic(String topic) {
     MqttTopicFilter topicFilter = MqttTopicFilter(topic, mqttClint.updates);
+    final box =
+        Hive.box<ChatMessage>(CryptoUtils.md5Encrypt("tyme_chat_$topic"));
+    final skipCount = box.length > 100 ? box.length - 100 : 0;
+    List<ChatMessage>? startMessages = box.values.skip(skipCount).toList();
+
     return topicFilter.updates
-        .startWithMany([]).scan<List<MqttReceivedMessage<MqttMessage>>>(
+        .map((newMessages) =>
+            newMessages.map((message) => message.toChatMessage()).toList())
+        .startWith(startMessages)
+        .scan<List<ChatMessage>>(
       (accumulatedMessages, newMessages, _) {
         return [...accumulatedMessages, ...newMessages];
       },
@@ -90,8 +129,12 @@ class Clint extends ChangeNotifier {
     );
   }
 
-  void disconnect() {
-    mqttClint.disconnect();
+  List<ChatMessage> getTopicInitialData(String topic) {
+    final box =
+        Hive.box<ChatMessage>(CryptoUtils.md5Encrypt("tyme_chat_$topic"));
+    final skipCount = box.length > 100 ? box.length - 100 : 0;
+    List<ChatMessage>? startMessages = box.values.skip(skipCount).toList();
+    return startMessages;
   }
 
   void onDisconnected() {
@@ -105,7 +148,9 @@ class Clint extends ChangeNotifier {
       }
     }
     _clintStatus = connectionStatus!.state;
-    notifyListeners();
+    if (!disposeState) {
+      notifyListeners();
+    }
   }
 
   /// The successful connect callback

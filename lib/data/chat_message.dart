@@ -1,9 +1,10 @@
 import 'dart:convert';
 
-import 'package:flutter/cupertino.dart';
 import 'package:hive/hive.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:nanoid/nanoid.dart';
+import 'package:tyme/data/clint_param.dart';
+import 'package:tyme/utils/crypto_utils.dart';
 
 part 'chat_message.g.dart';
 
@@ -36,9 +37,17 @@ class ChatMessage {
   @HiveField(8)
   String receiver = "";
 
+  @HiveField(8)
+  bool haveRead = false;
+
   @override
   String toString() {
     return 'ChatMessage{id: $id, topic: $topic, retain: $retain, qos: $qos, mine: $mine, timestamp: $timestamp, content: $content, sender: $sender, receiver: $receiver}';
+  }
+
+  insert() async {
+    final key = CryptoUtils.md5Encrypt("tyme_chat_${topic.header}");
+    await Hive.box<ChatMessage>(key).add(this);
   }
 }
 
@@ -79,11 +88,13 @@ enum MessageType {
 }
 
 extension ChatMqttMessage on MqttReceivedMessage<MqttMessage> {
-  ChatMessage toChatMessage(String self) {
+  ChatMessage toChatMessage() {
     final payload = this.payload as MqttPublishMessage;
     final message = ChatMessage();
     message.id = nanoid();
     message.topic.topic = topic!;
+    message.topic.header = ClintParam.instance.getTopicHeader(topic!);
+
     message.retain = payload.header!.retain;
     message.qos = payload.header!.qos.index;
     message.timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -121,22 +132,16 @@ extension ChatMqttMessage on MqttReceivedMessage<MqttMessage> {
 
     final contentTypeList = contentType.split(";");
     final type = contentTypeList[0];
-    final charset = (contentTypeList.length > 1
-        ? contentTypeList[1].substring(8)
-        : "utf-8");
 
-    final messageContent = MessageContent();
-    messageContent.raw = const Utf8Decoder().convert(payload.payload.message!);
+    message.content.raw = const Utf8Decoder().convert(payload.payload.message!);
 
     if (type == "application/json") {
-      messageContent.type = MessageType.json;
+      message.content.type = MessageType.json;
     } else if (type == "text/markdown") {
-      messageContent.type = MessageType.markDown;
+      message.content.type = MessageType.markDown;
     }
 
-    message.content = messageContent;
-
-    message.mine = sender == self;
+    message.mine = sender == ClintParam.instance.clintId;
     return message;
   }
 }

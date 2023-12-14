@@ -235,8 +235,14 @@ Future<void> _hiveInit() async {
   Hive.registerAdapter(ChatMessageAdapter());
   Hive.registerAdapter(TopicAdapter());
   Hive.registerAdapter(MessageContentAdapter());
+  Hive.registerAdapter(MessageTypeAdapter());
 
   await Hive.initFlutter();
   await Hive.openBox("tyme_config");
-  await Hive.openBox("tyme_chat");
+  final ClintParam? clintParam = Hive.box("tyme_config").get("clint_param");
+  if (clintParam != null) {
+    for (var key in clintParam.subscribeTopicWithSystemDbKey) {
+      Hive.openBox<ChatMessage>(key);
+    }
+  }
 }
