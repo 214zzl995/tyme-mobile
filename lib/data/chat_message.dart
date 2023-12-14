@@ -88,12 +88,12 @@ enum MessageType {
 }
 
 extension ChatMqttMessage on MqttReceivedMessage<MqttMessage> {
-  ChatMessage toChatMessage() {
+  ChatMessage toChatMessage(ClintParam clintParam) {
     final payload = this.payload as MqttPublishMessage;
     final message = ChatMessage();
     message.id = nanoid();
     message.topic.topic = topic!;
-    message.topic.header = ClintParam.instance.getTopicHeader(topic!);
+    message.topic.header = clintParam.getTopicHeader(topic!);
 
     message.retain = payload.header!.retain;
     message.qos = payload.header!.qos.index;
@@ -141,7 +141,7 @@ extension ChatMqttMessage on MqttReceivedMessage<MqttMessage> {
       message.content.type = MessageType.markDown;
     }
 
-    message.mine = sender == ClintParam.instance.clintId;
+    message.mine = sender == clintParam.clintId;
     return message;
   }
 }

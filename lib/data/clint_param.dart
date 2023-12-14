@@ -64,6 +64,15 @@ class ClintParam {
     subscribeTopic = List.from(from.subscribeTopic);
   }
 
+  bool equals(ClintParam other) {
+    return broker == other.broker &&
+        port == other.port &&
+        clintId == other.clintId &&
+        username == other.username &&
+        password == other.password &&
+        securityParam == other.securityParam;
+  }
+
   ClintParam._();
 
   ClintParam(
@@ -74,8 +83,6 @@ class ClintParam {
       this.password,
       this.securityParam,
       this.subscribeTopic = const []]);
-
-  static final ClintParam instance = ClintParam._();
 
   List<String> get subscribeTopicWithSystem => [...subscribeTopic, "system/#"];
 

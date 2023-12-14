@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
+import 'package:provider/provider.dart';
+
+import '../provider/clint.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -21,7 +25,11 @@ class HomePage extends StatelessWidget {
               <Widget>[
                 ElevatedButton(
                   onPressed: () {
-                    GoRouter.of(context).goNamed("Guide");
+                    // GoRouter.of(context).goNamed("Guide");
+                    final param = context.read<Clint>().clintParam;
+                    final param1 = param.copyWith(subscribeTopic: ["chat/#","chat1/#","chat2/#","chat3/#"]);
+
+                    Hive.box("tyme_config").put("clint_param", param1);
                   },
                   child: const Text('Demo'),
                 ),

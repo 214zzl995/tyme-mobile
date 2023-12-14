@@ -1,132 +1,108 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:lottie/lottie.dart';
-import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:provider/provider.dart';
-import 'package:tyme/provider/clint.dart';
 
-import '../components/detect_lifecycle.dart';
-import '../data/chat_message.dart';
+import '../provider/clint.dart';
 
 class ChatPage extends StatelessWidget {
   const ChatPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final ScrollController scrollController = ScrollController();
-
     return Scaffold(
       body: CustomScrollView(
-        controller: scrollController,
         slivers: <Widget>[
           const SliverAppBar.large(
             leading: Icon(Icons.chat),
             title: Text('Chat'),
           ),
-          Selector<Clint, MqttConnectionState>(
-            builder: (context, state, child) {
-              if (state == MqttConnectionState.connected) {
-                return _chatList(context, scrollController);
-              } else {
-                return SliverToBoxAdapter(
-                    child: Center(child: _connecting(context)));
-              }
+          SliverToBoxAdapter(
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outlineVariant
+                        .withOpacity(0.2),
+                    width: 0.8,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Selector<Clint, List<String>>(
+            builder: (BuildContext context, List<String> subscribeTopics,
+                Widget? child) {
+              return SliverList(
+                delegate: SliverChildListDelegate(
+                  <Widget>[
+                    ...subscribeTopics
+                        .map((topic) => _buildTopicItem(context, topic))
+                  ],
+                ),
+              );
             },
-            selector: (context, state) => state.clintStatus,
+            selector: (context, clint) => clint.clintParam.subscribeTopic,
           ),
         ],
       ),
     );
   }
 
-  Widget _connecting(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-            height: 300,
-            width: 300,
-            child: Lottie.asset(
-              'assets/lottie/chat_connecting.json',
-              fit: BoxFit.cover,
-              repeat: true,
-            )),
-        const SizedBox(
-          height: 5,
-          width: 200,
-          child: LinearProgressIndicator(
-            borderRadius: BorderRadius.all(Radius.circular(5)),
-          ),
-        ),
-      ],
-      //条形进度条
-    );
-  }
-
-  Widget _disconnected(BuildContext context) {
-    return const Column(
-      children: [
-        Icon(Icons.error),
-        Text('MQtt Disconnected'),
-      ],
-    );
-  }
-
-  Widget _chatList(BuildContext context, ScrollController scrollController) {
-    return StreamProvider<List<ChatMessage>>(
-      initialData: const [],
-      create: (BuildContext context) =>
-          context.read<Clint>().msgByTopic('system/#'),
-      child: Consumer<List<ChatMessage>>(
-        builder: (context, messages, child) {
-          return DetectLifecycle(
-            build:
-                (BuildContext context, AppLifecycleState state, Widget? child) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (scrollController.hasClients &&
-                    GoRouter.of(context)
-                            .routeInformationProvider
-                            .value
-                            .uri
-                            .path ==
-                        "/chat" &&
-                    state == AppLifecycleState.resumed) {
-                  scrollController.animateTo(
-                    scrollController.position.maxScrollExtent,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut,
-                  );
-                }
-              });
-              return child!;
-            },
-            child: SliverList(
-              key: const PageStorageKey("chat_page_scroll_view"),
-              delegate: SliverChildListDelegate(
-                <Widget>[
-                  ...messages.mapIndexed(
-                    (index, message) => ListTile(
-                      title: Text('Item $index'),
-                    ),
-                  )
-                ],
-              ),
+  Widget _buildTopicItem(BuildContext context, String topic) {
+    GlobalKey key = GlobalKey();
+    return SizedBox(
+      key: key,
+      height: 60,
+      child: InkWell(
+        onTap: () {},
+        onLongPress: () {
+          RenderBox box = key.currentContext?.findRenderObject() as RenderBox;
+          Offset position = box.localToGlobal(Offset.zero);
+          Size size = box.size;
+          showMenu(
+            context: context,
+            position: RelativeRect.fromLTRB(
+              position.dx + size.width,
+              position.dy + size.height / 2,
+              position.dx + size.width,
+              position.dy + size.height / 2,
             ),
+            items: <PopupMenuEntry>[
+              const PopupMenuItem(
+                value: 'option1',
+                child: Text('Option 1'),
+              ),
+              const PopupMenuItem(
+                value: 'option2',
+                child: Text('Option 2'),
+              ),
+            ],
           );
         },
+        child: Container(
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.only(left: 20),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withOpacity(0.2),
+                width: 0.8,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.mark_chat_unread_outlined),
+              const SizedBox(width: 20),
+              Text(topic, style: Theme.of(context).textTheme.bodyMedium),
+            ],
+          ),
+        ),
       ),
     );
-  }
-
-  Widget _buildMessageCard(BuildContext context, ChatMessage message) {
-    /*return VisibilityDetector(
-        key: Key("unique key"),
-        onVisibilityChanged: (VisibilityInfo info) {
-          debugPrint("${info.visibleFraction} of my widget is visible");
-        },
-        child: Row(
-
-        ));*/
-    return Container();
   }
 }

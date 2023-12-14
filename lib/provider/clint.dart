@@ -16,6 +16,7 @@ import 'package:tyme/utils/crypto_utils.dart';
 
 import '../main.dart';
 
+/// 是否出现修改只需要判断 Clint的 _clintParam 是否等于 Hive.box('tyme_config').listenable(keys: ["clint_param"]) equals 为false时需要重启
 class Clint extends ChangeNotifier {
   final bool topicNotified = false;
 
@@ -23,7 +24,7 @@ class Clint extends ChangeNotifier {
 
   MqttConnectionState _clintStatus = MqttConnectionState.disconnected;
 
-  bool _paramChange = false;
+  final ClintParam _clintParam;
 
   bool disposeState = false;
 
@@ -34,8 +35,10 @@ class Clint extends ChangeNotifier {
     super.dispose();
   }
 
-  Clint(ClintParam clintParam) {
-    init(clintParam);
+  Clint(this._clintParam) {
+    init();
+
+    debugPrint(_clintParam.subscribeTopic.toString());
 
     mqttClint.onConnected = onConnected;
     mqttClint.onDisconnected = onDisconnected;
@@ -43,38 +46,36 @@ class Clint extends ChangeNotifier {
       debugPrint('tyme::client::::Subscription confirmed for topic $topic');
     };
 
-    connect(clintParam.subscribeTopic);
+    connect(_clintParam.subscribeTopic);
   }
 
   void restart([ClintParam? clintParam]) {
     mqttClint.disconnect();
     if (clintParam != null) {
-      init(clintParam);
+      init();
     }
 
-    connect(ClintParam.instance.subscribeTopic);
+    connect(_clintParam.subscribeTopic);
   }
 
-  void init(ClintParam clintParam) {
-    ClintParam.instance.from(clintParam);
-
-    mqttClint.port = clintParam.port;
-    mqttClint.server = clintParam.broker;
-    if (clintParam.securityParam != null) {
-      mqttClint.securityContext = setCertificate(clintParam.securityParam!);
+  void init() {
+    mqttClint.port = _clintParam.port;
+    mqttClint.server = _clintParam.broker;
+    if (_clintParam.securityParam != null) {
+      mqttClint.securityContext = setCertificate(_clintParam.securityParam!);
     }
 
     final connMess = MqttConnectMessage()
-        .withClientIdentifier(clintParam.clintId)
+        .withClientIdentifier(_clintParam.clintId)
         .startClean();
 
-    if (clintParam.username != null && clintParam.password != null) {
-      connMess.authenticateAs(clintParam.username!, clintParam.password!);
+    if (_clintParam.username != null && _clintParam.password != null) {
+      connMess.authenticateAs(_clintParam.username!, _clintParam.password!);
     }
 
     mqttClint.connectionMessage = connMess;
     mqttClint.keepAlivePeriod = 60;
-    mqttClint.secure = clintParam.securityParam != null;
+    mqttClint.secure = _clintParam.securityParam != null;
   }
 
   void connect(List<String> subscribeTopic) async {
@@ -98,7 +99,7 @@ class Clint extends ChangeNotifier {
 
       mqttClint.updates.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         for (var message in c) {
-          final chatMessage = message.toChatMessage();
+          final chatMessage = message.toChatMessage(_clintParam);
           chatMessage.insert();
         }
         _showNotification();
@@ -118,8 +119,9 @@ class Clint extends ChangeNotifier {
     List<ChatMessage>? startMessages = box.values.skip(skipCount).toList();
 
     return topicFilter.updates
-        .map((newMessages) =>
-            newMessages.map((message) => message.toChatMessage()).toList())
+        .map((newMessages) => newMessages
+            .map((message) => message.toChatMessage(_clintParam))
+            .toList())
         .startWith(startMessages)
         .scan<List<ChatMessage>>(
       (accumulatedMessages, newMessages, _) {
@@ -169,12 +171,8 @@ class Clint extends ChangeNotifier {
 
   MqttConnectionStatus? get connectionStatus => mqttClint.connectionStatus;
 
-  bool get paramChange => _paramChange;
+  ClintParam get clintParam  => _clintParam;
 
-  set paramChange(bool value) {
-    _paramChange = value;
-    notifyListeners();
-  }
 }
 
 setCertificate(ClintSecurityParam clintSecurityParam) {

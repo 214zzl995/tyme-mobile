@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/single_child_widget.dart';
 
-class DetectLifecycle extends SingleChildStatefulWidget {
-  const DetectLifecycle({
+class DetectLifecycleScrollTo extends SingleChildStatefulWidget {
+  const DetectLifecycleScrollTo({
     Key? key,
     required this.build,
     Widget? child,
@@ -11,10 +11,10 @@ class DetectLifecycle extends SingleChildStatefulWidget {
   final ValueWidgetBuilder<AppLifecycleState> build;
 
   @override
-  State<StatefulWidget> createState() => _DetectLifecycleState();
+  State<StatefulWidget> createState() => _DetectLifecycleScrollToState();
 }
 
-class _DetectLifecycleState extends SingleChildState<DetectLifecycle>
+class _DetectLifecycleScrollToState extends SingleChildState<DetectLifecycleScrollTo>
     with WidgetsBindingObserver {
   AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
 

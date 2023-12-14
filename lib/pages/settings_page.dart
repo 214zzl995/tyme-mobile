@@ -5,11 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/adapters.dart';
-import 'package:provider/provider.dart';
 import 'package:tyme/data/clint_param.dart';
 
 import '../data/clint_security_param.dart';
-import '../provider/clint.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -111,7 +109,6 @@ class SettingsPage extends StatelessWidget {
 
                         Hive.box('tyme_config')
                             .put("clint_param", editClintParam);
-                        context.read<Clint>().paramChange = true;
                       }
                     }, false, false, true);
                   }),
@@ -135,7 +132,6 @@ class SettingsPage extends StatelessWidget {
                         Hive.box('tyme_config')
                             .put("clint_param", editClintParam);
 
-                        context.read<Clint>().paramChange = true;
                       }
                     }, false, true, true);
                   }),
@@ -145,7 +141,6 @@ class SettingsPage extends StatelessWidget {
                       tymeConfig.get("clint_param").securityParam.filename,
                       Icons.security_outlined, () {
                     _filePicker(tymeConfig.get("clint_param")).then((_) {
-                      context.read<Clint>().paramChange = true;
                     });
                   }),
                 ]);
