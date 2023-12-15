@@ -10,7 +10,9 @@ import '../components/detect_lifecycle.dart';
 import '../data/chat_message.dart';
 
 class ChatTopicPage extends StatelessWidget {
-  const ChatTopicPage({Key? key}) : super(key: key);
+  const ChatTopicPage({Key? key, required this.topic}) : super(key: key);
+
+  final String topic;
 
   @override
   Widget build(BuildContext context) {

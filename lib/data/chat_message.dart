@@ -4,7 +4,6 @@ import 'package:hive/hive.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:nanoid/nanoid.dart';
 import 'package:tyme/data/clint_param.dart';
-import 'package:tyme/utils/crypto_utils.dart';
 
 part 'chat_message.g.dart';
 
@@ -20,33 +19,27 @@ class ChatMessage {
   bool retain = false;
 
   @HiveField(3)
-  int qos = 0;
-
-  @HiveField(4)
   bool mine = false;
 
-  @HiveField(5)
+  @HiveField(4)
   int timestamp = 0;
 
-  @HiveField(6)
+  @HiveField(5)
   MessageContent content = MessageContent();
 
-  @HiveField(7)
+  @HiveField(6)
   String sender = "";
 
-  @HiveField(8)
+  @HiveField(7)
   String receiver = "";
-
-  @HiveField(8)
-  bool haveRead = false;
 
   @override
   String toString() {
-    return 'ChatMessage{id: $id, topic: $topic, retain: $retain, qos: $qos, mine: $mine, timestamp: $timestamp, content: $content, sender: $sender, receiver: $receiver}';
+    return 'ChatMessage{id: $id, topic: $topic, retain: $retain,  mine: $mine, timestamp: $timestamp, content: $content, sender: $sender, receiver: $receiver}';
   }
 
   insert() async {
-    final key = CryptoUtils.md5Encrypt("tyme_chat_${topic.header}");
+    final key = topic.header.getHiveKey();
     await Hive.box<ChatMessage>(key).add(this);
   }
 }
@@ -57,7 +50,7 @@ class Topic {
   String topic = "";
 
   @HiveField(1)
-  String? header;
+  SubscribeTopic header = SubscribeTopic.empty();
 
   @override
   String toString() {
@@ -93,10 +86,9 @@ extension ChatMqttMessage on MqttReceivedMessage<MqttMessage> {
     final message = ChatMessage();
     message.id = nanoid();
     message.topic.topic = topic!;
-    message.topic.header = clintParam.getTopicHeader(topic!);
+    message.topic.header = clintParam.getTopicHeader(topic!,payload.header!.qos.index);
 
     message.retain = payload.header!.retain;
-    message.qos = payload.header!.qos.index;
     message.timestamp = DateTime.now().millisecondsSinceEpoch;
 
     final variableHeader = payload.variableHeader;

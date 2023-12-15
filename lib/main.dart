@@ -236,6 +236,7 @@ Future<void> _hiveInit() async {
   Hive.registerAdapter(TopicAdapter());
   Hive.registerAdapter(MessageContentAdapter());
   Hive.registerAdapter(MessageTypeAdapter());
+  Hive.registerAdapter(SubscribeTopicAdapter());
 
   await Hive.initFlutter();
   await Hive.openBox("tyme_config");

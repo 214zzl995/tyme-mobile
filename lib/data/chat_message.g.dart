@@ -20,18 +20,17 @@ class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
       ..id = fields[0] as String
       ..topic = fields[1] as Topic
       ..retain = fields[2] as bool
-      ..qos = fields[3] as int
-      ..mine = fields[4] as bool
-      ..timestamp = fields[5] as int
-      ..content = fields[6] as MessageContent
-      ..sender = fields[7] as String
-      ..receiver = fields[8] as String;
+      ..mine = fields[3] as bool
+      ..timestamp = fields[4] as int
+      ..content = fields[5] as MessageContent
+      ..sender = fields[6] as String
+      ..receiver = fields[7] as String;
   }
 
   @override
   void write(BinaryWriter writer, ChatMessage obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -39,16 +38,14 @@ class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
       ..writeByte(2)
       ..write(obj.retain)
       ..writeByte(3)
-      ..write(obj.qos)
-      ..writeByte(4)
       ..write(obj.mine)
-      ..writeByte(5)
+      ..writeByte(4)
       ..write(obj.timestamp)
-      ..writeByte(6)
+      ..writeByte(5)
       ..write(obj.content)
-      ..writeByte(7)
+      ..writeByte(6)
       ..write(obj.sender)
-      ..writeByte(8)
+      ..writeByte(7)
       ..write(obj.receiver);
   }
 
@@ -75,7 +72,7 @@ class TopicAdapter extends TypeAdapter<Topic> {
     };
     return Topic()
       ..topic = fields[0] as String
-      ..header = fields[1] as String?;
+      ..header = fields[1] as SubscribeTopic;
   }
 
   @override

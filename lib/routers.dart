@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tyme/data/clint_param.dart';
 import 'package:tyme/pages/chat_page.dart';
+import 'package:tyme/pages/chat_topic_page.dart';
 import 'package:tyme/pages/demo_page.dart';
 import 'package:tyme/pages/guide_page.dart';
 import 'package:tyme/pages/home_page.dart';
@@ -59,6 +60,19 @@ class TymeRouteConfiguration {
     ),
   ];
 
+  static List<Path> navDetailPaths = [
+    Path(
+      'ChatTopic',
+      '/chat_topic',
+      (context, state) {
+        const topic = "test/#";
+        return const ChatTopicPage(topic: topic);
+      },
+      openInSecondScreen: false,
+      icon: const Icon(Icons.settings),
+    ),
+  ];
+
   static List<Path> rootPaths = [
     Path(
       'Demo',
@@ -107,7 +121,14 @@ class TymeRouteConfiguration {
                         List<Widget> children) {
                       return MainPage(
                           navigationShell: navigationShell, children: children);
-                    })
+                    }),
+                ...List.of(navDetailPaths).map((path) {
+                  return GoRoute(
+                    name: path.name,
+                    path: path.path,
+                    builder: (context, state) => path.builder(context, state),
+                  );
+                })
               ]),
           ...List.of(rootPaths).map((path) {
             return GoRoute(

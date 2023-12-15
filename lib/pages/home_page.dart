@@ -25,11 +25,7 @@ class HomePage extends StatelessWidget {
               <Widget>[
                 ElevatedButton(
                   onPressed: () {
-                    // GoRouter.of(context).goNamed("Guide");
-                    final param = context.read<Clint>().clintParam;
-                    final param1 = param.copyWith(subscribeTopic: ["chat/#","chat1/#","chat2/#","chat3/#"]);
-
-                    Hive.box("tyme_config").put("clint_param", param1);
+                   GoRouter.of(context).goNamed("Guide");
                   },
                   child: const Text('Demo'),
                 ),

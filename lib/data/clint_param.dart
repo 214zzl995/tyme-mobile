@@ -26,7 +26,7 @@ class ClintParam {
   ClintSecurityParam? securityParam;
 
   @HiveField(6)
-  List<String> subscribeTopic = [];
+  List<SubscribeTopic> subscribeTopics = [];
 
   bool get isComplete =>
       broker != "" &&
@@ -41,7 +41,7 @@ class ClintParam {
       String? username,
       String? password,
       ClintSecurityParam? securityParam,
-      List<String>? subscribeTopic}) {
+      List<SubscribeTopic>? subscribeTopics}) {
     final clintParam = ClintParam(
         broker ?? this.broker,
         port ?? this.port,
@@ -49,7 +49,7 @@ class ClintParam {
         username ?? this.username,
         password ?? this.password,
         securityParam ?? this.securityParam,
-        subscribeTopic ?? this.subscribeTopic);
+        subscribeTopics ?? this.subscribeTopics);
 
     return clintParam;
   }
@@ -61,7 +61,7 @@ class ClintParam {
     username = from.username;
     password = from.password;
     securityParam = from.securityParam;
-    subscribeTopic = List.from(from.subscribeTopic);
+    subscribeTopics = List.from(from.subscribeTopics);
   }
 
   bool equals(ClintParam other) {
@@ -73,8 +73,6 @@ class ClintParam {
         securityParam == other.securityParam;
   }
 
-  ClintParam._();
-
   ClintParam(
       [this.broker = "",
       this.port = -1,
@@ -82,26 +80,31 @@ class ClintParam {
       this.username,
       this.password,
       this.securityParam,
-      this.subscribeTopic = const []]);
+      this.subscribeTopics = const []]);
 
-  List<String> get subscribeTopicWithSystem => [...subscribeTopic, "system/#"];
+  List<SubscribeTopic> get subscribeTopicWithSystem =>
+      [...subscribeTopics, SubscribeTopic("system/#", 1)];
 
   List<String> get subscribeTopicWithSystemDbKey => subscribeTopicWithSystem
-      .map((topic) => CryptoUtils.md5Encrypt("tyme_chat_$topic"))
+      .map((topic) => CryptoUtils.md5Encrypt("tyme_chat_${topic.topic}"))
       .toList();
 
-  String getTopicHeader(String topic) {
+  SubscribeTopic getTopicHeader(String topic, int qos) {
     for (var subscribeTopic in subscribeTopicWithSystem) {
+      if (qos != subscribeTopic.qos) {
+        continue;
+      }
       // 如果 subscribeTopic 以 '#' 结尾，我们只需要检查 topic 是否以 subscribeTopic 的前缀开始
-      if (subscribeTopic.endsWith('#')) {
-        var prefix = subscribeTopic.substring(0, subscribeTopic.length - 1);
+      if (subscribeTopic.topic.endsWith('#')) {
+        var prefix =
+            subscribeTopic.topic.substring(0, subscribeTopic.topic.length - 1);
         if (topic.startsWith(prefix)) {
           return subscribeTopic;
         }
       }
       // 如果 subscribeTopic 包含 '+', 我们需要将其分解为各个部分，并与 topic 的相应部分进行比较
-      else if (subscribeTopic.contains('+')) {
-        var subscribeParts = subscribeTopic.split('/');
+      else if (subscribeTopic.topic.contains('+')) {
+        var subscribeParts = subscribeTopic.topic.split('/');
         var topicParts = topic.split('/');
         if (subscribeParts.length != topicParts.length) {
           continue;
@@ -118,12 +121,29 @@ class ClintParam {
         }
       }
       // 如果 subscribeTopic 不包含任何通配符，我们只需要检查它是否等于 topic
-      else if (subscribeTopic == topic) {
+      else if (subscribeTopic.topic == topic) {
         return subscribeTopic;
       }
     }
 
     // 如果没有找到匹配的项，返回一个空字符串
-    return '';
+    return SubscribeTopic.empty();
+  }
+}
+
+@HiveType(typeId: 7)
+class SubscribeTopic {
+  @HiveField(0)
+  String topic = "";
+  @HiveField(1)
+  int qos = -1;
+
+  SubscribeTopic(this.topic, this.qos);
+
+  SubscribeTopic.empty();
+
+  String getHiveKey() {
+    String mKey = "tyme_chat_$topic";
+    return CryptoUtils.md5Encrypt(mKey);
   }
 }

@@ -131,7 +131,6 @@ class SettingsPage extends StatelessWidget {
 
                         Hive.box('tyme_config')
                             .put("clint_param", editClintParam);
-
                       }
                     }, false, true, true);
                   }),
@@ -140,8 +139,7 @@ class SettingsPage extends StatelessWidget {
                       "Certificate",
                       tymeConfig.get("clint_param").securityParam.filename,
                       Icons.security_outlined, () {
-                    _filePicker(tymeConfig.get("clint_param")).then((_) {
-                    });
+                    _filePicker(tymeConfig.get("clint_param")).then((_) {});
                   }),
                 ]);
               })
@@ -259,6 +257,14 @@ class SettingsPage extends StatelessWidget {
                 children: [
                   TextButton(
                     onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: Text('Close',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error)),
+                  ),
+                  TextButton(
+                    onPressed: () {
                       dynamic confirmValue;
                       if (number) {
                         confirmValue =
@@ -272,12 +278,6 @@ class SettingsPage extends StatelessWidget {
                       Navigator.pop(context);
                     },
                     child: const Text('Confirm'),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Close'),
                   ),
                 ],
               )

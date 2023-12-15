@@ -38,7 +38,7 @@ class Clint extends ChangeNotifier {
   Clint(this._clintParam) {
     init();
 
-    debugPrint(_clintParam.subscribeTopic.toString());
+    debugPrint(_clintParam.subscribeTopics.toString());
 
     mqttClint.onConnected = onConnected;
     mqttClint.onDisconnected = onDisconnected;
@@ -46,7 +46,7 @@ class Clint extends ChangeNotifier {
       debugPrint('tyme::client::::Subscription confirmed for topic $topic');
     };
 
-    connect(_clintParam.subscribeTopic);
+    connect(_clintParam.subscribeTopicWithSystem);
   }
 
   void restart([ClintParam? clintParam]) {
@@ -55,7 +55,7 @@ class Clint extends ChangeNotifier {
       init();
     }
 
-    connect(_clintParam.subscribeTopic);
+    connect(_clintParam.subscribeTopicWithSystem);
   }
 
   void init() {
@@ -78,7 +78,7 @@ class Clint extends ChangeNotifier {
     mqttClint.secure = _clintParam.securityParam != null;
   }
 
-  void connect(List<String> subscribeTopic) async {
+  void connect(List<SubscribeTopic> subscribeTopic) async {
     try {
       _clintStatus = MqttConnectionState.connecting;
       notifyListeners();
@@ -88,12 +88,14 @@ class Clint extends ChangeNotifier {
 
       mqttSubscriptionOption.maximumQos = MqttQos.atLeastOnce;
 
-      final mqttSubscriptionList = subscribeTopic
-          .map((topic) => MqttSubscription(
-              MqttSubscriptionTopic(topic), mqttSubscriptionOption))
-          .toList();
+      final mqttSubscriptionList = subscribeTopic.map((topic) {
+        final mqttSubscriptionOption = MqttSubscriptionOption();
 
-      mqttClint.subscribe("system/#", MqttQos.atLeastOnce);
+        mqttSubscriptionOption.maximumQos = MqttQos.values[topic.qos];
+
+        return MqttSubscription(
+            MqttSubscriptionTopic(topic.topic), mqttSubscriptionOption);
+      }).toList();
 
       mqttClint.subscribeWithSubscriptionList(mqttSubscriptionList);
 
@@ -167,12 +169,47 @@ class Clint extends ChangeNotifier {
     debugPrint('tyme::client::Ping response client callback invoked');
   }
 
+  void subscriptionTopic(SubscribeTopic subscribeTopic) {
+    bool isExist = clintParam.subscribeTopics
+        .where((topic) => topic.topic == subscribeTopic.topic)
+        .isNotEmpty;
+
+    if (isExist) {
+      return;
+    }
+    if (mqttClint.connectionStatus != null) {
+      if (mqttClint.connectionStatus!.state == MqttConnectionState.connecting) {
+        mqttClint.subscribe(
+            subscribeTopic.topic, MqttQos.values[subscribeTopic.qos]);
+      }
+    }
+    clintParam.subscribeTopics.add(subscribeTopic);
+
+    Hive.box('tyme_config').put("clint_param", clintParam);
+    notifyListeners();
+  }
+
+  void unSubscriptionTopic(SubscribeTopic subscribeTopic) {
+    if (mqttClint.connectionStatus != null) {
+      if (mqttClint.connectionStatus!.state == MqttConnectionState.connecting) {
+        final mqttSubscriptionOption = MqttSubscriptionOption();
+        mqttSubscriptionOption.maximumQos = MqttQos.values[subscribeTopic.qos];
+        mqttClint.unsubscribeSubscription(MqttSubscription(
+            MqttSubscriptionTopic(subscribeTopic.topic),
+            mqttSubscriptionOption));
+      }
+    }
+    clintParam.subscribeTopics.remove(subscribeTopic);
+
+    Hive.box('tyme_config').put("clint_param", clintParam);
+    notifyListeners();
+  }
+
   MqttConnectionState get clintStatus => _clintStatus;
 
   MqttConnectionStatus? get connectionStatus => mqttClint.connectionStatus;
 
-  ClintParam get clintParam  => _clintParam;
-
+  ClintParam get clintParam => _clintParam;
 }
 
 setCertificate(ClintSecurityParam clintSecurityParam) {
