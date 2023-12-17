@@ -56,6 +56,7 @@ class TymeRouteConfiguration {
       openInSecondScreen: false,
       icon: const Icon(Icons.chat),
     ),
+    //添加 发送复杂消息的页面 全屏输入框
     Path(
       'Settings',
       '/settings',

@@ -73,6 +73,8 @@ class ChatTopicPage extends StatelessWidget {
             },
             selector: (context, state) => state.clintStatus,
           ),
+          // 底部太空了 添加一个快捷回复的框 将 ‘+’ 或 ‘#’ 转换为 ‘$’ 添加设置项设置自动转换逻辑 在此输入框输入无法配置topic 只能保证订阅了此topic的人能够收到消息
+          // 还需要添加一个显示未读的 按钮等 当存在未读时 显示未读的数字 当不存在未读时 显示到达底部按钮
         ],
       ),
     );
@@ -120,6 +122,7 @@ class ChatTopicPage extends StatelessWidget {
               context.read<Clint>().msgByTopic(topic, initialData: initialData),
           child: Consumer<List<(int, ChatMessage)>>(
             builder: (context, messages, child) {
+              // 需要判断是否之前已经读完 如果之前已经读完 直接跳转 到最新的消息 可以考虑直接获取 TopicReadIndex 的index
               if (messages.length == initialData.length) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   scrollController
@@ -138,12 +141,6 @@ class ChatTopicPage extends StatelessWidget {
                     Widget? child) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (scrollController.hasClients &&
-                        GoRouter.of(context)
-                                .routeInformationProvider
-                                .value
-                                .uri
-                                .path ==
-                            "/chat" &&
                         state == AppLifecycleState.resumed) {
                       scrollController.animateTo(
                         scrollController.position.maxScrollExtent,
@@ -157,6 +154,7 @@ class ChatTopicPage extends StatelessWidget {
                 child: SliverList(
                   delegate: SliverChildListDelegate(
                     <Widget>[
+                      // 前面加个空白的占位的Widget 不然太空了
                       ...messages.map((message) =>
                           _buildMessageCard(context, message.$2, message.$1))
                     ],
