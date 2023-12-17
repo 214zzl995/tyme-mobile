@@ -224,13 +224,23 @@ class GuideSetting extends StatelessWidget {
                             clintParamListenable.value =
                                 clintParam.copyWith(clintId: value);
                           }),
-                          _buildSettingInput(context, "Username",
-                              Icons.account_circle_outlined, false, false, true, (value) {
+                          _buildSettingInput(
+                              context,
+                              "Username",
+                              Icons.account_circle_outlined,
+                              false,
+                              false,
+                              true, (value) {
                             clintParamListenable.value =
                                 clintParam.copyWith(username: value);
                           }),
-                          _buildSettingInput(context, "Password",
-                              Icons.password_outlined, false, true, true, (value) {
+                          _buildSettingInput(
+                              context,
+                              "Password",
+                              Icons.password_outlined,
+                              false,
+                              true,
+                              true, (value) {
                             clintParamListenable.value =
                                 clintParam.copyWith(password: value);
                           }),

@@ -33,6 +33,11 @@ class Path {
 }
 
 class TymeRouteConfiguration {
+  static final GlobalKey<NavigatorState> rootNavigatorKey =
+      GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> rootParentNavigatorKey =
+      GlobalKey<NavigatorState>();
+
   static const initial = '/home';
   static const initInitial = '/guide';
 
@@ -65,8 +70,21 @@ class TymeRouteConfiguration {
       'ChatTopic',
       '/chat_topic',
       (context, state) {
-        const topic = "test/#";
-        return const ChatTopicPage(topic: topic);
+        SubscribeTopic? topic = state.extra as SubscribeTopic?;
+        if (topic == null) {
+          // 获取state.uri 传递的topic 和qos
+          final uri = state.uri;
+          final String? topicStr = uri.queryParameters['topic'];
+          final String? qosStr = uri.queryParameters['qos'];
+
+          if (topicStr != null && qosStr != null) {
+            topic = SubscribeTopic(topicStr, int.parse(qosStr));
+          } else {
+            // 都不存在回Chat
+            GoRouter.of(context).goNamed("Chat");
+          }
+        }
+        return ChatTopicPage(topic: topic!);
       },
       openInSecondScreen: false,
       icon: const Icon(Icons.settings),
@@ -93,6 +111,7 @@ class TymeRouteConfiguration {
         initialLocation: clintParam == null ? initInitial : initial,
         routes: [
           ShellRoute(
+              navigatorKey: rootParentNavigatorKey,
               pageBuilder:
                   (BuildContext context, GoRouterState state, Widget child) {
                 return FadeTransitionPage(
@@ -100,6 +119,7 @@ class TymeRouteConfiguration {
               },
               routes: [
                 StatefulShellRoute(
+                    parentNavigatorKey: rootParentNavigatorKey,
                     builder: (BuildContext context, GoRouterState state,
                         StatefulNavigationShell navigationShell) {
                       return navigationShell;
@@ -124,10 +144,15 @@ class TymeRouteConfiguration {
                     }),
                 ...List.of(navDetailPaths).map((path) {
                   return GoRoute(
-                    name: path.name,
-                    path: path.path,
-                    builder: (context, state) => path.builder(context, state),
-                  );
+                      parentNavigatorKey: rootParentNavigatorKey,
+                      name: path.name,
+                      path: path.path,
+                      pageBuilder: (context, state) {
+                        return FadeTransitionPage(
+                          key: state.pageKey,
+                          child: path.builder(context, state),
+                        );
+                      });
                 })
               ]),
           ...List.of(rootPaths).map((path) {
@@ -144,7 +169,6 @@ class TymeRouteConfiguration {
 }
 
 class FadeTransitionPage extends CustomTransitionPage<void> {
-  /// Creates a [SlideUpFadeTransitionPage].
   FadeTransitionPage({
     required LocalKey super.key,
     required super.child,
@@ -153,7 +177,6 @@ class FadeTransitionPage extends CustomTransitionPage<void> {
                     Animation<double> animation,
                     Animation<double> secondaryAnimation,
                     Widget child) =>
-                // FadeTransition(opacity: animation, child: child));
                 FadeTransition(
                     opacity:
                         Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(
@@ -168,6 +191,12 @@ class FadeTransitionPage extends CustomTransitionPage<void> {
                       )),
                       child: child,
                     )));
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 300);
+
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 300);
 
   static const Curve _curve = Cubic(1, .19, 0, .81);
 }

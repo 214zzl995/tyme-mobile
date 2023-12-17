@@ -240,6 +240,7 @@ Future<void> _hiveInit() async {
 
   await Hive.initFlutter();
   await Hive.openBox("tyme_config");
+  await Hive.openBox("tyme_chat_read_index");
   final ClintParam? clintParam = Hive.box("tyme_config").get("clint_param");
   if (clintParam != null) {
     for (var key in clintParam.subscribeTopicWithSystemDbKey) {

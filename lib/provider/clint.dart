@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive/hive.dart';
@@ -12,7 +13,6 @@ import 'package:rxdart/rxdart.dart';
 import 'package:tyme/data/chat_message.dart';
 import 'package:tyme/data/clint_param.dart';
 import 'package:tyme/data/clint_security_param.dart';
-import 'package:tyme/utils/crypto_utils.dart';
 
 import '../main.dart';
 
@@ -113,33 +113,48 @@ class Clint extends ChangeNotifier {
   }
 
   /// 获取特定topic的Stream
-  Stream<List<ChatMessage>> msgByTopic(String topic) {
-    MqttTopicFilter topicFilter = MqttTopicFilter(topic, mqttClint.updates);
-    final box =
-        Hive.box<ChatMessage>(CryptoUtils.md5Encrypt("tyme_chat_$topic"));
-    final skipCount = box.length > 100 ? box.length - 100 : 0;
-    List<ChatMessage>? startMessages = box.values.skip(skipCount).toList();
+  Stream<List<(int, ChatMessage)>> msgByTopic(SubscribeTopic topic,
+      {List<(int, ChatMessage)> initialData = const []}) {
+    MqttTopicFilter topicFilter =
+        MqttTopicFilter(topic.topic, mqttClint.updates);
 
     return topicFilter.updates
         .map((newMessages) => newMessages
-            .map((message) => message.toChatMessage(_clintParam))
+            .map((message) => (0, message.toChatMessage(_clintParam)))
             .toList())
-        .startWith(startMessages)
-        .scan<List<ChatMessage>>(
+        .startWith(initialData)
+        .scan<List<(int, ChatMessage)>>(
       (accumulatedMessages, newMessages, _) {
-        return [...accumulatedMessages, ...newMessages];
+        final accumulatedIsNotEmptyIndex =
+            accumulatedMessages.isNotEmpty ? 1 : 0;
+        final maxIndex =
+            accumulatedMessages.isNotEmpty ? accumulatedMessages.last.$1 : 0;
+
+        final newMessagesWithIndex = newMessages
+            .mapIndexed((index, msg) =>
+                (index + maxIndex + accumulatedIsNotEmptyIndex, msg.$2))
+            .toList();
+
+        return [...accumulatedMessages, ...newMessagesWithIndex];
       },
       [],
     );
   }
 
-  List<ChatMessage> getTopicInitialData(String topic) {
-    final box =
-        Hive.box<ChatMessage>(CryptoUtils.md5Encrypt("tyme_chat_$topic"));
-    final skipCount = box.length > 100 ? box.length - 100 : 0;
-    List<ChatMessage>? startMessages = box.values.skip(skipCount).toList();
+  List<(int, ChatMessage)> getTopicInitialData(SubscribeTopic subscribeTopic) {
+    final box = Hive.box<ChatMessage>(subscribeTopic.getHiveKey());
+
+    final boxReadIndexIsExist = box.get("read_index") == null ? 0 : 1;
+
+    final length = box.length - boxReadIndexIsExist;
+    final skipCount = length > 100 ? length - 100 : 0;
+    List<(int, ChatMessage)>? startMessages = box
+        .valuesBetween(startKey: skipCount, endKey: length)
+        .mapIndexed((index, msg) => (index + skipCount, msg))
+        .toList();
     return startMessages;
   }
+
 
   void onDisconnected() {
     debugPrint('tyme::client::OnDisconnected 客户端回调 - 客户端断开连接');
@@ -186,6 +201,7 @@ class Clint extends ChangeNotifier {
     clintParam.subscribeTopics.add(subscribeTopic);
 
     Hive.box('tyme_config').put("clint_param", clintParam);
+    Hive.openBox(subscribeTopic.getHiveKey());
     notifyListeners();
   }
 
@@ -202,6 +218,11 @@ class Clint extends ChangeNotifier {
     clintParam.subscribeTopics.remove(subscribeTopic);
 
     Hive.box('tyme_config').put("clint_param", clintParam);
+
+    final key = subscribeTopic.getHiveKey();
+    Hive.box(key).deleteFromDisk();
+    Hive.box(key).close();
+
     notifyListeners();
   }
 

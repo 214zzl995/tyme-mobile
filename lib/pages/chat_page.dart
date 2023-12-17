@@ -349,8 +349,7 @@ class ChatPage extends StatelessWidget {
   }
 
   void pushChatTopic(BuildContext context, SubscribeTopic topic) {
-
-    GoRouter.of(context).go("/chat_topic?topic=test#");
+    GoRouter.of(context).push("/chat_topic", extra: topic);
   }
 }
 

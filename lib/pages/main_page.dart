@@ -27,9 +27,7 @@ class MainPage extends StatelessWidget {
         onDestinationSelected: (index) {
           GoRouter.of(context).go(TymeRouteConfiguration.navPaths[index].path);
         },
-        selectedIndex: TymeRouteConfiguration.navPaths.indexWhere((element) =>
-            element.path ==
-            GoRouter.of(context).routeInformationProvider.value.uri.path),
+        selectedIndex: getSelectedIndex(context),
         destinations: [
           ...List.of(TymeRouteConfiguration.navPaths).map((path) {
             return NavigationDestination(
@@ -40,6 +38,13 @@ class MainPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  int getSelectedIndex(BuildContext context) {
+    int index = TymeRouteConfiguration.navPaths.indexWhere((element) =>
+        element.path ==
+        GoRouter.of(context).routeInformationProvider.value.uri.path);
+    return index == -1 ? navigationShell.currentIndex : index;
   }
 }
 
