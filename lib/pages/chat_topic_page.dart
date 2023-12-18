@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:provider/provider.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:tyme/provider/clint.dart';
 import 'package:tyme/provider/topic_read_index.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -22,9 +23,15 @@ class ChatTopicPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ScrollController scrollController = ScrollController();
+
+    final autoScrollController = AutoScrollController(
+      viewportBoundaryGetter: () =>
+          Rect.fromLTRB(0, 0, 0, MediaQuery.of(context).padding.bottom),
+    );
+
     return Scaffold(
       body: CustomScrollView(
-        controller: scrollController,
+        controller: autoScrollController,
         slivers: <Widget>[
           SliverAppBar(
             pinned: true,
@@ -64,7 +71,8 @@ class ChatTopicPage extends StatelessWidget {
           Selector<Clint, MqttConnectionState>(
             builder: (context, state, child) {
               if (state == MqttConnectionState.connected) {
-                return _chatList(context, scrollController);
+                return _chatList(
+                    context, scrollController, autoScrollController);
               } else {
                 return SliverToBoxAdapter(
                     child: Center(child: _connecting(context)));
@@ -75,6 +83,15 @@ class ChatTopicPage extends StatelessWidget {
           // 底部太空了 添加一个快捷回复的框 将 ‘+’ 或 ‘#’ 转换为 ‘$’ 添加设置项设置自动转换逻辑 在此输入框输入无法配置topic 只能保证订阅了此topic的人能够收到消息
           // 还需要添加一个显示未读的 按钮等 当存在未读时 显示未读的数字 当不存在未读时 显示到达底部按钮
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await autoScrollController.scrollToIndex(50,
+              preferPosition: AutoScrollPosition.begin);
+
+          autoScrollController.highlight(50);
+        },
+        child: const Text("Test"),
       ),
     );
   }
@@ -111,7 +128,8 @@ class ChatTopicPage extends StatelessWidget {
     );
   }
 
-  Widget _chatList(BuildContext context, ScrollController scrollController) {
+  Widget _chatList(BuildContext context, ScrollController scrollController,
+      AutoScrollController autoScrollController) {
     final initialData = context.read<Clint>().getTopicInitialData(topic);
     return Provider(
         create: (_) => TopicReadIndex(topic),
@@ -125,8 +143,8 @@ class ChatTopicPage extends StatelessWidget {
               if (messages.length == initialData.length) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   //定位到未读Index
-                  scrollController
-                      .jumpTo(scrollController.position.maxScrollExtent);
+                  // scrollController
+                  //     .jumpTo(scrollController.position.maxScrollExtent);
                 });
               }
               if (messages.isEmpty) {
@@ -155,8 +173,8 @@ class ChatTopicPage extends StatelessWidget {
                   delegate: SliverChildListDelegate(
                     <Widget>[
                       // 前面加个空白的占位的Widget 不然太空了
-                      ...messages.map((message) =>
-                          _buildMessageCard(context, message.$2, message.$1))
+                      ...messages.map((message) => _buildMessageCard(context,
+                          autoScrollController, message.$2, message.$1))
                     ],
                   ),
                 ),
@@ -167,98 +185,108 @@ class ChatTopicPage extends StatelessWidget {
   }
 
   Widget _buildMessageCard(
-      BuildContext context, ChatMessage message, int index) {
+      BuildContext context,
+      AutoScrollController autoScrollController,
+      ChatMessage message,
+      int index) {
     ValueNotifier<bool> expandShow = ValueNotifier<bool>(false);
     TopicReadIndex topicReadIndex = context.read<TopicReadIndex>();
-    return VisibilityDetector(
-      key: ValueKey(index),
-      onVisibilityChanged: (VisibilityInfo info) {
-        topicReadIndex.changeReadIndex(index);
-      },
-      child: Align(
-        alignment: message.mine ? Alignment.centerRight : Alignment.centerLeft,
-        child: GestureDetector(
-          onTap: () {
-            expandShow.value = !expandShow.value;
+    return AutoScrollTag(
+      key: ValueKey("scroll$index"),
+      controller: autoScrollController,
+      index: index,
+      highlightColor: Colors.black.withOpacity(0.1),
+      child: VisibilityDetector(
+        key: ValueKey(index),
+        onVisibilityChanged: (VisibilityInfo info) {
+          topicReadIndex.changeReadIndex(index);
+        },
+        child: Align(
+          alignment:
+              message.mine ? Alignment.centerRight : Alignment.centerLeft,
+          child: GestureDetector(
+            onTap: () {
+              expandShow.value = !expandShow.value;
 
-            if (expandShow.value) {
-              Future.delayed(const Duration(milliseconds: 2000), () {
+              if (expandShow.value) {
+                Future.delayed(const Duration(milliseconds: 2000), () {
+                  expandShow.value = false;
+                });
+              }
+            },
+            onLongPressStart: (details) {
+              expandShow.value = true;
+            },
+            onLongPressEnd: (details) {
+              Future.delayed(const Duration(milliseconds: 500), () {
                 expandShow.value = false;
               });
-            }
-          },
-          onLongPressStart: (details) {
-            expandShow.value = true;
-          },
-          onLongPressEnd: (details) {
-            Future.delayed(const Duration(milliseconds: 500), () {
-              expandShow.value = false;
-            });
-          },
-          child: Container(
-              decoration: BoxDecoration(
-                  color: message.mine
-                      ? Theme.of(context).colorScheme.secondaryContainer
-                      : Theme.of(context).colorScheme.onPrimary,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: Theme.of(context).colorScheme.outlineVariant)),
-              width: 270,
-              padding: const EdgeInsets.only(right: 10, left: 10, bottom: 2),
-              margin: const EdgeInsets.only(bottom: 10, left: 8, right: 8),
-              child: Column(
-                children: [
-                  ValueListenableBuilder(
-                      valueListenable: expandShow,
-                      builder:
-                          (BuildContext context, bool show, Widget? child) {
-                        return Row(
-                          children: [
-                            Text(
-                              show ? message.topic.topic : "",
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall!
-                                  .copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .outline),
-                            ),
-                          ],
-                        );
-                      }),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  MarkdownBody(data: message.content.raw),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  ValueListenableBuilder(
-                      valueListenable: expandShow,
-                      builder:
-                          (BuildContext context, bool show, Widget? child) {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text(
-                                show
-                                    ? DateTime.fromMillisecondsSinceEpoch(
-                                            message.timestamp)
-                                        .toCustomString()
-                                    : "",
+            },
+            child: Container(
+                decoration: BoxDecoration(
+                    color: message.mine
+                        ? Theme.of(context).colorScheme.secondaryContainer
+                        : Theme.of(context).colorScheme.onPrimary,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: Theme.of(context).colorScheme.outlineVariant)),
+                width: 270,
+                padding: const EdgeInsets.only(right: 10, left: 10, bottom: 2),
+                margin: const EdgeInsets.only(bottom: 10, left: 8, right: 8),
+                child: Column(
+                  children: [
+                    ValueListenableBuilder(
+                        valueListenable: expandShow,
+                        builder:
+                            (BuildContext context, bool show, Widget? child) {
+                          return Row(
+                            children: [
+                              Text(
+                                show ? message.topic.topic : "",
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall!
                                     .copyWith(
                                         color: Theme.of(context)
                                             .colorScheme
-                                            .outline)),
-                          ],
-                        );
-                      }),
-                ],
-              )),
+                                            .outline),
+                              ),
+                            ],
+                          );
+                        }),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    MarkdownBody(data: message.content.raw),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    ValueListenableBuilder(
+                        valueListenable: expandShow,
+                        builder:
+                            (BuildContext context, bool show, Widget? child) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                  show
+                                      ? DateTime.fromMillisecondsSinceEpoch(
+                                              message.timestamp)
+                                          .toCustomString()
+                                      : "",
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall!
+                                      .copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .outline)),
+                            ],
+                          );
+                        }),
+                  ],
+                )),
+          ),
         ),
       ),
     );
