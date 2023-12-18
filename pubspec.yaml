@@ -30,6 +30,7 @@ dependencies:
   mime_type: ^1.0.0
   crypto: ^3.0.3
   visibility_detector: ^0.4.0+2
+  scrollview_observer: ^1.19.0
 
 dev_dependencies:
   flutter_test:

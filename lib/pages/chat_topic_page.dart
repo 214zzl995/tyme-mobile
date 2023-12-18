@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:provider/provider.dart';
+import 'package:scrollview_observer/scrollview_observer.dart';
 import 'package:tyme/provider/clint.dart';
 import 'package:tyme/provider/topic_read_index.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -11,70 +12,117 @@ import '../components/detect_lifecycle.dart';
 import '../data/chat_message.dart';
 import '../data/clint_param.dart';
 
-// 滚动条设置到某个位置
-// https://stackoverflow.com/questions/60528815/flutter-how-to-scroll-to-a-specific-item-position-in-sliverlist
+const double appbarHeight = 40;
 
 class ChatTopicPage extends StatelessWidget {
-  const ChatTopicPage({Key? key, required this.topic}) : super(key: key);
+  const ChatTopicPage({Key? key, required this.topic, required})
+      : super(key: key);
 
   final SubscribeTopic topic;
 
   @override
   Widget build(BuildContext context) {
     final ScrollController scrollController = ScrollController();
-    return Scaffold(
-      body: CustomScrollView(
-        controller: scrollController,
-        slivers: <Widget>[
-          SliverAppBar(
-            pinned: true,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () {
-                GoRouter.of(context).goNamed("Chat");
-              },
-            ),
-            title: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.mark_chat_unread_outlined),
-                const SizedBox(
-                  width: 10,
-                ),
-                Text(
-                  topic.topic,
-                  style: Theme.of(context).textTheme.titleMedium,
+
+    return Provider(
+      create: (_) => TopicReadIndex(topic),
+      lazy: false,
+      builder: (BuildContext context, Widget? child) {
+        final observerController =
+            SliverObserverController(controller: scrollController)
+              ..initialIndexModelBlock = () {
+                return ObserverIndexPositionModel(
+                  index: context.read<TopicReadIndex>().readInitIndex,
+                  sliverContext: context.read<TopicReadIndex>().chatListCtx,
+                );
+              };
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          observerController.dispatchOnceObserve(
+            sliverContext: context.read<TopicReadIndex>().chatListCtx!,
+          );
+        });
+
+        return SliverViewObserver(
+          controller: observerController,
+          sliverContexts: () {
+            final ctx = context.read<TopicReadIndex>().chatListCtx;
+            return [
+              if (ctx != null) ctx,
+            ];
+          },
+          autoTriggerObserveTypes: const [
+            ObserverAutoTriggerObserveType.scrollEnd,
+          ],
+          triggerOnObserveType: ObserverTriggerOnObserveType.directly,
+          onObserveAll: (resultMap) {},
+          child: Scaffold(
+            body: CustomScrollView(
+              controller: scrollController,
+              slivers: <Widget>[
+                _buildAppBar(context),
+                Selector<Clint, MqttConnectionState>(
+                  builder: (context, state, child) {
+                    if (state == MqttConnectionState.connected) {
+                      return _chatList(context, scrollController);
+                    } else {
+                      return SliverToBoxAdapter(
+                          child: Center(child: _connecting(context)));
+                    }
+                  },
+                  selector: (context, state) => state.clintStatus,
                 ),
               ],
             ),
-            centerTitle: true,
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(0.8), // 这里设置你想要的高度
-              child: Divider(
-                height: 0.8,
-                color: Theme.of(context)
-                    .colorScheme
-                    .outlineVariant
-                    .withOpacity(0.2), // 这里设置你想要的颜色
-              ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                observerController.animateTo(
+                    index: 30,
+                    duration: const Duration(seconds: 1),
+                    curve: Curves.ease);
+              },
+              child: const Text("TEST"),
             ),
           ),
-          Selector<Clint, MqttConnectionState>(
-            builder: (context, state, child) {
-              if (state == MqttConnectionState.connected) {
-                return _chatList(context, scrollController);
-              } else {
-                return SliverToBoxAdapter(
-                    child: Center(child: _connecting(context)));
-              }
-            },
-            selector: (context, state) => state.clintStatus,
+        );
+      },
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return SliverAppBar(
+      pinned: true,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () {
+          GoRouter.of(context).goNamed("Chat");
+        },
+      ),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.mark_chat_unread_outlined),
+          const SizedBox(
+            width: 10,
           ),
-          // 底部太空了 添加一个快捷回复的框 将 ‘+’ 或 ‘#’ 转换为 ‘$’ 添加设置项设置自动转换逻辑 在此输入框输入无法配置topic 只能保证订阅了此topic的人能够收到消息
-          // 还需要添加一个显示未读的 按钮等 当存在未读时 显示未读的数字 当不存在未读时 显示到达底部按钮
+          Text(
+            topic.topic,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
         ],
+      ),
+      centerTitle: true,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(0.8), // 这里设置你想要的高度
+        child: Divider(
+          height: 0.8,
+          color: Theme.of(context)
+              .colorScheme
+              .outlineVariant
+              .withOpacity(0.2), // 这里设置你想要的颜色
+        ),
       ),
     );
   }
@@ -98,7 +146,6 @@ class ChatTopicPage extends StatelessWidget {
           ),
         ),
       ],
-      //条形进度条
     );
   }
 
@@ -112,58 +159,43 @@ class ChatTopicPage extends StatelessWidget {
   }
 
   Widget _chatList(BuildContext context, ScrollController scrollController) {
-    final initialData = context.read<Clint>().getTopicInitialData(topic);
-    return Provider(
-        create: (_) => TopicReadIndex(topic),
-        child: StreamProvider<List<(int, ChatMessage)>>(
-          initialData: initialData,
-          create: (BuildContext context) =>
-              context.read<Clint>().msgByTopic(topic, initialData: initialData),
-          child: Consumer<List<(int, ChatMessage)>>(
-            builder: (context, messages, child) {
-              // 需要判断是否之前已经读完 如果之前已经读完 直接跳转 到最新的消息 可以考虑直接获取 TopicReadIndex 的index
-              if (messages.length == initialData.length) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  //定位到未读Index
-                  scrollController
-                      .jumpTo(scrollController.position.maxScrollExtent);
-                });
-              }
-              if (messages.isEmpty) {
-                return const SliverToBoxAdapter(
-                  child: Center(
-                    child: Text('No Message'),
-                  ),
-                );
-              }
-              return DetectLifecycleScrollTo(
-                build: (BuildContext context, AppLifecycleState state,
-                    Widget? child) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (scrollController.hasClients &&
-                        state == AppLifecycleState.resumed) {
-                      scrollController.animateTo(
-                        scrollController.position.maxScrollExtent,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.bounceIn,
-                      );
-                    }
-                  });
-                  return child!;
-                },
-                child: SliverList(
-                  delegate: SliverChildListDelegate(
-                    <Widget>[
-                      // 前面加个空白的占位的Widget 不然太空了
-                      ...messages.map((message) =>
-                          _buildMessageCard(context, message.$2, message.$1))
-                    ],
-                  ),
-                ),
-              );
+    final initialData = context.read<TopicReadIndex>().topicInitialData;
+    return StreamProvider<List<(int, ChatMessage)>>(
+      initialData: initialData,
+      create: (BuildContext context) =>
+          context.read<Clint>().msgByTopic(topic, initialData: initialData),
+      child: Consumer<List<(int, ChatMessage)>>(
+        builder: (context, messages, child) {
+          if (messages.length == initialData.length) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {});
+          }
+          if (messages.isEmpty) {
+            return const SliverToBoxAdapter(
+              child: Center(
+                child: Text('No Message'),
+              ),
+            );
+          }
+          return DetectLifecycleScrollTo(
+            build:
+                (BuildContext context, AppLifecycleState state, Widget? child) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {});
+              return child!;
             },
-          ),
-        ));
+            child: SliverList(
+              delegate: SliverChildBuilderDelegate((ctx, index) {
+                if (ctx.read<TopicReadIndex>().chatListCtx == null) {
+                  ctx.read<TopicReadIndex>().chatListCtx = ctx;
+                }
+
+                final message = messages[index];
+                return _buildMessageCard(context, message.$2, message.$1);
+              }, childCount: messages.length),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildMessageCard(
@@ -230,6 +262,7 @@ class ChatTopicPage extends StatelessWidget {
                   const SizedBox(
                     height: 10,
                   ),
+                  Text(index.toString()),
                   MarkdownBody(data: message.content.raw),
                   const SizedBox(
                     height: 10,

@@ -141,27 +141,6 @@ class Clint extends ChangeNotifier {
     );
   }
 
-  List<(int, ChatMessage)> getTopicInitialData(SubscribeTopic subscribeTopic) {
-    final key = subscribeTopic.getHiveKey();
-    final box = Hive.box<ChatMessage>(key);
-    final readIndex = Hive.box("tyme_chat_read_index").get(key) ?? 0;
-    final length = box.length;
-
-    final normalBegin = length > 100 ? length - 100 : 0;
-
-    final int skipCount = readIndex - normalBegin > -10
-        ? normalBegin
-        : readIndex > 10
-            ? readIndex - 10
-            : 0;
-
-    List<(int, ChatMessage)>? startMessages = box
-        .valuesBetween(startKey: skipCount, endKey: length)
-        .mapIndexed((index, msg) => (index + skipCount, msg))
-        .toList();
-    return startMessages;
-  }
-
   void onDisconnected() {
     debugPrint('tyme::client::OnDisconnected 客户端回调 - 客户端断开连接');
     if (mqttClint.connectionStatus!.disconnectionOrigin ==
