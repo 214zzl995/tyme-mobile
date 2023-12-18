@@ -23,6 +23,7 @@ class TopicReadIndex {
   int readIndex = 0;
 
   void changeReadIndex(int index) {
+    debugPrint("changeReadIndex,now index is $index,readIndex is $readIndex");
     if (index > readIndex) {
       Hive.box(readBox).put(key, index);
     }
