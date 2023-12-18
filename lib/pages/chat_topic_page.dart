@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive/hive.dart';
 import 'package:lottie/lottie.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:provider/provider.dart';
@@ -125,6 +124,7 @@ class ChatTopicPage extends StatelessWidget {
               // 需要判断是否之前已经读完 如果之前已经读完 直接跳转 到最新的消息 可以考虑直接获取 TopicReadIndex 的index
               if (messages.length == initialData.length) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
+                  //定位到未读Index
                   scrollController
                       .jumpTo(scrollController.position.maxScrollExtent);
                 });
@@ -145,7 +145,7 @@ class ChatTopicPage extends StatelessWidget {
                       scrollController.animateTo(
                         scrollController.position.maxScrollExtent,
                         duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOut,
+                        curve: Curves.bounceIn,
                       );
                     }
                   });
