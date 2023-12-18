@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -205,45 +204,31 @@ class GuideSetting extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 5),
                         children: [
                           _buildSettingInput(
-                              context,
-                              "Broker",
-                              Icons.cloud_outlined,
-                              false,
-                              false,
-                              false, (value) {
+                              context, "Broker", Icons.cloud_outlined, (value) {
                             clintParamListenable.value =
                                 clintParam.copyWith(broker: value);
                           }),
-                          _buildSettingInput(context, "Port",
-                              Icons.link_outlined, true, false, false, (value) {
+                          _buildSettingInput(
+                              context, "Port", Icons.link_outlined, (value) {
                             clintParamListenable.value = clintParam.copyWith(
                                 port: int.parse(value == "" ? "0" : value));
-                          }),
-                          _buildSettingInput(context, "ClintId",
-                              Icons.usb_outlined, false, false, false, (value) {
+                          }, number: true),
+                          _buildSettingInput(
+                              context, "ClintId", Icons.usb_outlined, (value) {
                             clintParamListenable.value =
                                 clintParam.copyWith(clintId: value);
                           }),
-                          _buildSettingInput(
-                              context,
-                              "Username",
-                              Icons.account_circle_outlined,
-                              false,
-                              false,
-                              true, (value) {
+                          _buildSettingInput(context, "Username",
+                              Icons.account_circle_outlined, (value) {
                             clintParamListenable.value =
                                 clintParam.copyWith(username: value);
-                          }),
+                          }, canNull: true),
                           _buildSettingInput(
-                              context,
-                              "Password",
-                              Icons.password_outlined,
-                              false,
-                              true,
-                              true, (value) {
+                              context, "Password", Icons.password_outlined,
+                              (value) {
                             clintParamListenable.value =
                                 clintParam.copyWith(password: value);
-                          }),
+                          }, password: true, canNull: true),
                           _buildCrtFilePicker(context, clintParam, (value) {
                             clintParamListenable.value =
                                 clintParam.copyWith(securityParam: value);
@@ -287,11 +272,11 @@ class GuideSetting extends StatelessWidget {
     BuildContext context,
     String label,
     IconData icon,
-    bool number,
-    bool password,
-    bool canNull,
-    ValueChanged<String> onChanged,
-  ) {
+    ValueChanged<String> onChanged, {
+    bool number = false,
+    bool password = false,
+    bool canNull = false,
+  }) {
     return Container(
         margin: const EdgeInsets.only(bottom: 20),
         child: Column(

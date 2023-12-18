@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive/hive.dart';
-import 'package:provider/provider.dart';
 
-import '../provider/clint.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});

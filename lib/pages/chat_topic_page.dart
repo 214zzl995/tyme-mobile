@@ -6,92 +6,100 @@ import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:provider/provider.dart';
 import 'package:scrollview_observer/scrollview_observer.dart';
 import 'package:tyme/provider/clint.dart';
-import 'package:tyme/provider/topic_read_index.dart';
+import 'package:tyme/data/topic_read_index.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../components/detect_lifecycle.dart';
 import '../data/chat_message.dart';
 import '../data/clint_param.dart';
 
-const double appbarHeight = 40;
-
-class ChatTopicPage extends StatelessWidget {
-  const ChatTopicPage({Key? key, required this.topic, required})
-      : super(key: key);
+class ChatTopicPage extends StatefulWidget {
+  const ChatTopicPage({Key? key, required this.topic}) : super(key: key);
 
   final SubscribeTopic topic;
 
   @override
+  State<StatefulWidget> createState() => ChatTopicPageState();
+}
+
+class ChatTopicPageState extends State<ChatTopicPage> {
+  BuildContext? _chatListCtx;
+
+  GlobalKey appBarKey = GlobalKey();
+  GlobalKey readIndexKey = GlobalKey();
+
+  ScrollController scrollController = ScrollController();
+
+  late SliverObserverController observerController;
+
+  late TopicReadIndex topicReadIndex = TopicReadIndex(widget.topic);
+
+  late List<(int, ChatMessage)> initialData = topicReadIndex.topicInitialData;
+
+  @override
+  void initState() {
+    observerController = SliverObserverController(controller: scrollController);
+
+    observerController.initialIndex = topicReadIndex.readIndex;
+
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      observerController.dispatchOnceObserve(
+        sliverContext: _chatListCtx!,
+      );
+    });
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final ScrollController scrollController = ScrollController();
-
-    return Provider(
-      create: (_) => TopicReadIndex(topic),
-      lazy: false,
-      builder: (BuildContext context, Widget? child) {
-        final observerController =
-            SliverObserverController(controller: scrollController)
-              ..initialIndexModelBlock = () {
-                return ObserverIndexPositionModel(
-                  index: context.read<TopicReadIndex>().readInitIndex,
-                  sliverContext: context.read<TopicReadIndex>().chatListCtx,
-                );
-              };
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          observerController.dispatchOnceObserve(
-            sliverContext: context.read<TopicReadIndex>().chatListCtx!,
-          );
-        });
-
-        return SliverViewObserver(
-          controller: observerController,
-          sliverContexts: () {
-            final ctx = context.read<TopicReadIndex>().chatListCtx;
-            return [
-              if (ctx != null) ctx,
-            ];
-          },
-          autoTriggerObserveTypes: const [
-            ObserverAutoTriggerObserveType.scrollEnd,
-          ],
-          triggerOnObserveType: ObserverTriggerOnObserveType.directly,
-          onObserveAll: (resultMap) {},
-          child: Scaffold(
-            body: CustomScrollView(
-              controller: scrollController,
-              slivers: <Widget>[
-                _buildAppBar(context),
-                Selector<Clint, MqttConnectionState>(
-                  builder: (context, state, child) {
-                    if (state == MqttConnectionState.connected) {
-                      return _chatList(context, scrollController);
-                    } else {
-                      return SliverToBoxAdapter(
-                          child: Center(child: _connecting(context)));
-                    }
-                  },
-                  selector: (context, state) => state.clintStatus,
-                ),
-              ],
-            ),
-            floatingActionButton: FloatingActionButton(
-              onPressed: () {
-                observerController.animateTo(
-                    index: 30,
-                    duration: const Duration(seconds: 1),
-                    curve: Curves.ease);
-              },
-              child: const Text("TEST"),
-            ),
-          ),
-        );
+    return SliverViewObserver(
+      controller: observerController,
+      sliverContexts: () {
+        return [
+          if (_chatListCtx != null) _chatListCtx!,
+        ];
       },
+      autoTriggerObserveTypes: const [
+        ObserverAutoTriggerObserveType.scrollEnd,
+      ],
+      triggerOnObserveType: ObserverTriggerOnObserveType.directly,
+      onObserveAll: (resultMap) {},
+      child: Scaffold(
+        body: CustomScrollView(
+          controller: scrollController,
+          slivers: <Widget>[
+            _buildAppBar(context),
+            Selector<Clint, MqttConnectionState>(
+              builder: (context, state, child) {
+                if (state == MqttConnectionState.connected) {
+                  return _chatList(context, scrollController);
+                } else {
+                  return SliverToBoxAdapter(
+                      child: Center(child: _connecting(context)));
+                }
+              },
+              selector: (context, state) => state.clintStatus,
+            ),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            observerController.animateTo(
+                index: 105,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeIn,
+                sliverContext: _chatListCtx!,
+                offset: calcPersistentHeaderExtent);
+          },
+          child: const Icon(Icons.arrow_downward),
+        ),
+      ),
     );
   }
 
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
       pinned: true,
+      key: appBarKey,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
         onPressed: () {
@@ -108,7 +116,7 @@ class ChatTopicPage extends StatelessWidget {
             width: 10,
           ),
           Text(
-            topic.topic,
+            widget.topic.topic,
             style: Theme.of(context).textTheme.titleMedium,
           ),
         ],
@@ -159,16 +167,13 @@ class ChatTopicPage extends StatelessWidget {
   }
 
   Widget _chatList(BuildContext context, ScrollController scrollController) {
-    final initialData = context.read<TopicReadIndex>().topicInitialData;
     return StreamProvider<List<(int, ChatMessage)>>(
       initialData: initialData,
-      create: (BuildContext context) =>
-          context.read<Clint>().msgByTopic(topic, initialData: initialData),
+      create: (BuildContext context) => context
+          .read<Clint>()
+          .msgByTopic(widget.topic, initialData: initialData),
       child: Consumer<List<(int, ChatMessage)>>(
         builder: (context, messages, child) {
-          if (messages.length == initialData.length) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {});
-          }
           if (messages.isEmpty) {
             return const SliverToBoxAdapter(
               child: Center(
@@ -184,12 +189,13 @@ class ChatTopicPage extends StatelessWidget {
             },
             child: SliverList(
               delegate: SliverChildBuilderDelegate((ctx, index) {
-                if (ctx.read<TopicReadIndex>().chatListCtx == null) {
-                  ctx.read<TopicReadIndex>().chatListCtx = ctx;
-                }
-
+                _chatListCtx ??= ctx;
                 final message = messages[index];
-                return _buildMessageCard(context, message.$2, message.$1);
+                final key = message.$1 == topicReadIndex.readIndex
+                    ? readIndexKey
+                    : null;
+                return _buildMessageCard(context, message.$2, message.$1,
+                    key: key);
               }, childCount: messages.length),
             ),
           );
@@ -199,101 +205,112 @@ class ChatTopicPage extends StatelessWidget {
   }
 
   Widget _buildMessageCard(
-      BuildContext context, ChatMessage message, int index) {
+      BuildContext context, ChatMessage message, int dbIndex,
+      {GlobalKey? key}) {
     ValueNotifier<bool> expandShow = ValueNotifier<bool>(false);
-    TopicReadIndex topicReadIndex = context.read<TopicReadIndex>();
-    return VisibilityDetector(
-      key: ValueKey(index),
-      onVisibilityChanged: (VisibilityInfo info) {
-        topicReadIndex.changeReadIndex(index);
-      },
-      child: Align(
-        alignment: message.mine ? Alignment.centerRight : Alignment.centerLeft,
-        child: GestureDetector(
-          onTap: () {
-            expandShow.value = !expandShow.value;
+    return Container(
+      key: key,
+      child: VisibilityDetector(
+        key: ValueKey(dbIndex),
+        onVisibilityChanged: (VisibilityInfo info) {
+          topicReadIndex.changeReadIndex(dbIndex);
+        },
+        child: Align(
+          alignment:
+              message.mine ? Alignment.centerRight : Alignment.centerLeft,
+          child: GestureDetector(
+            onTap: () {
+              expandShow.value = !expandShow.value;
 
-            if (expandShow.value) {
-              Future.delayed(const Duration(milliseconds: 2000), () {
+              if (expandShow.value) {
+                Future.delayed(const Duration(milliseconds: 2000), () {
+                  expandShow.value = false;
+                });
+              }
+            },
+            onLongPressStart: (details) {
+              expandShow.value = true;
+            },
+            onLongPressEnd: (details) {
+              Future.delayed(const Duration(milliseconds: 500), () {
                 expandShow.value = false;
               });
-            }
-          },
-          onLongPressStart: (details) {
-            expandShow.value = true;
-          },
-          onLongPressEnd: (details) {
-            Future.delayed(const Duration(milliseconds: 500), () {
-              expandShow.value = false;
-            });
-          },
-          child: Container(
-              decoration: BoxDecoration(
-                  color: message.mine
-                      ? Theme.of(context).colorScheme.secondaryContainer
-                      : Theme.of(context).colorScheme.onPrimary,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: Theme.of(context).colorScheme.outlineVariant)),
-              width: 270,
-              padding: const EdgeInsets.only(right: 10, left: 10, bottom: 2),
-              margin: const EdgeInsets.only(bottom: 10, left: 8, right: 8),
-              child: Column(
-                children: [
-                  ValueListenableBuilder(
-                      valueListenable: expandShow,
-                      builder:
-                          (BuildContext context, bool show, Widget? child) {
-                        return Row(
-                          children: [
-                            Text(
-                              show ? message.topic.topic : "",
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall!
-                                  .copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .outline),
-                            ),
-                          ],
-                        );
-                      }),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  Text(index.toString()),
-                  MarkdownBody(data: message.content.raw),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  ValueListenableBuilder(
-                      valueListenable: expandShow,
-                      builder:
-                          (BuildContext context, bool show, Widget? child) {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text(
-                                show
-                                    ? DateTime.fromMillisecondsSinceEpoch(
-                                            message.timestamp)
-                                        .toCustomString()
-                                    : "",
+            },
+            child: Container(
+                decoration: BoxDecoration(
+                    color: message.mine
+                        ? Theme.of(context).colorScheme.secondaryContainer
+                        : Theme.of(context).colorScheme.onPrimary,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: Theme.of(context).colorScheme.outlineVariant)),
+                width: 270,
+                padding: const EdgeInsets.only(right: 10, left: 10, bottom: 2),
+                margin: const EdgeInsets.only(bottom: 10, left: 8, right: 8),
+                child: Column(
+                  children: [
+                    ValueListenableBuilder(
+                        valueListenable: expandShow,
+                        builder:
+                            (BuildContext context, bool show, Widget? child) {
+                          return Row(
+                            children: [
+                              Text(
+                                show ? message.topic.topic : "",
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall!
                                     .copyWith(
                                         color: Theme.of(context)
                                             .colorScheme
-                                            .outline)),
-                          ],
-                        );
-                      }),
-                ],
-              )),
+                                            .outline),
+                              ),
+                            ],
+                          );
+                        }),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    Text(dbIndex.toString()),
+                    MarkdownBody(data: message.content.raw),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    ValueListenableBuilder(
+                        valueListenable: expandShow,
+                        builder:
+                            (BuildContext context, bool show, Widget? child) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                  show
+                                      ? DateTime.fromMillisecondsSinceEpoch(
+                                              message.timestamp)
+                                          .toCustomString()
+                                      : "",
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall!
+                                      .copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .outline)),
+                            ],
+                          );
+                        }),
+                  ],
+                )),
+          ),
         ),
       ),
+    );
+  }
+
+  double calcPersistentHeaderExtent(double offset) {
+    return ObserverUtils.calcPersistentHeaderExtent(
+      key: appBarKey,
+      offset: offset,
     );
   }
 }

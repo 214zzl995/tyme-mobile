@@ -66,7 +66,7 @@ class SettingsPage extends StatelessWidget {
                         Hive.box('tyme_config')
                             .put("clint_param", editClintParam);
                       }
-                    }, true, false, false);
+                    }, number: true);
                   }),
                   _buildSettingItem(
                       context,
@@ -110,7 +110,7 @@ class SettingsPage extends StatelessWidget {
                         Hive.box('tyme_config')
                             .put("clint_param", editClintParam);
                       }
-                    }, false, false, true);
+                    }, canNull: true);
                   }),
                   _buildSettingItem(
                       context,
@@ -132,7 +132,7 @@ class SettingsPage extends StatelessWidget {
                         Hive.box('tyme_config')
                             .put("clint_param", editClintParam);
                       }
-                    }, false, true, true);
+                    }, password: true, canNull: true);
                   }),
                   _buildSettingItem(
                       context,
@@ -199,7 +199,7 @@ class SettingsPage extends StatelessWidget {
 
   _buildEditDialog(BuildContext context, String title, String defaultValue,
       IconData icon, AsyncValueSetter confirmCallback,
-      [bool number = false, bool password = false, bool canNull = false]) {
+      {bool number = false, bool password = false, bool canNull = false}) {
     String editText = "";
 
     showDialog<String>(
