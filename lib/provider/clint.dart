@@ -113,34 +113,14 @@ class Clint extends ChangeNotifier {
   }
 
   /// 获取特定topic的Stream
-  Stream<List<(int, ChatMessage)>> messagesByTopicStream(SubscribeTopic topic,
-      {List<(int, ChatMessage)> initialData = const []}) {
+  Stream<List<(int, ChatMessage)>> messagesByTopicStream(SubscribeTopic topic) {
     MqttTopicFilter topicFilter =
         MqttTopicFilter(topic.topic, mqttClint.updates);
 
-    return topicFilter.updates
-        .map((newMessages) => newMessages
-            .map((message) => (0, message.toChatMessage(_clintParam)))
-            .toList())
-        .startWith(initialData)
-        .scan<List<(int, ChatMessage)>>(
-      (accumulatedMessages, newMessages, _) {
-        if (accumulatedMessages.isEmpty) {
-          return newMessages;
-        }
-
-        final maxIndex = accumulatedMessages.first.$1;
-
-        final newMessagesWithIndex = newMessages
-            .mapIndexed((index, msg) => (index + maxIndex + 1, msg.$2))
-            .toList();
-
-        return [...newMessagesWithIndex, ...accumulatedMessages];
-      },
-      [],
-    );
+    return topicFilter.updates.map((newMessages) => newMessages
+        .map((message) => (-1, message.toChatMessage(_clintParam)))
+        .toList());
   }
-
 
   void onDisconnected() {
     debugPrint('tyme::client::OnDisconnected 客户端回调 - 客户端断开连接');

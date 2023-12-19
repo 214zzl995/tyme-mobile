@@ -1,16 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:easy_refresh/easy_refresh.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lottie/lottie.dart';
-import 'package:mqtt5_client/mqtt5_client.dart';
+import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
-import 'package:scrollview_observer/scrollview_observer.dart';
-import 'package:tyme/provider/clint.dart';
-import 'package:tyme/data/topic_read_index.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+
 import '../components/detect_lifecycle.dart';
 import '../data/chat_message.dart';
 import '../data/clint_param.dart';
+import '../data/topic_read_index.dart';
+import '../provider/clint.dart';
 
 class ChatTopicPage extends StatefulWidget {
   const ChatTopicPage({Key? key, required this.topic}) : super(key: key);
@@ -18,184 +22,262 @@ class ChatTopicPage extends StatefulWidget {
   final SubscribeTopic topic;
 
   @override
-  State<StatefulWidget> createState() => ChatTopicPageState();
+  State<ChatTopicPage> createState() => _ChatTopicPageState();
 }
 
-class ChatTopicPageState extends State<ChatTopicPage> {
-  BuildContext? _chatListCtx;
+class _ChatTopicPageState extends State<ChatTopicPage> {
+  final _listenable = IndicatorStateListenable();
+  late final TextEditingController _inputController;
 
-  GlobalKey appBarKey = GlobalKey();
+  bool _shrinkWrap = false;
+  double? _viewportDimension;
 
-  ScrollController scrollController = ScrollController();
+  late TopicReadIndex topicReadIndex = TopicReadIndex(
+      widget.topic, context.read<Clint>().messagesByTopicStream(widget.topic),
+      preloadCount: 30);
 
-  late SliverObserverController observerController;
+  final ItemScrollController itemScrollController = ItemScrollController();
 
-  late TopicReadIndex topicReadIndex = TopicReadIndex(widget.topic);
+  final ScrollOffsetController scrollOffsetController =
+      ScrollOffsetController();
+  final ItemPositionsListener itemPositionsListener =
+      ItemPositionsListener.create();
 
-  late List<(int, ChatMessage)> initialData = topicReadIndex.topicInitialData;
+  double currentPosition = 0;
 
   @override
   void initState() {
-    observerController = SliverObserverController(controller: scrollController);
-
-    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      observerController.dispatchOnceObserve(
-        sliverContext: _chatListCtx!,
-      );
-    });
     super.initState();
+    _inputController = TextEditingController();
+    _inputController.addListener(() {
+      setState(() {});
+    });
+    _listenable.addListener(_onHeaderChange);
+  }
+
+  @override
+  void dispose() {
+    _listenable.removeListener(_onHeaderChange);
+    _inputController.dispose();
+    super.dispose();
+  }
+
+  void _onHeaderChange() {
+    final state = _listenable.value;
+    if (state != null) {
+      final position = state.notifier.position;
+      _viewportDimension ??= position.viewportDimension;
+      final shrinkWrap = state.notifier.position.maxScrollExtent == 0;
+      if (_shrinkWrap != shrinkWrap &&
+          _viewportDimension == position.viewportDimension) {
+        setState(() {
+          _shrinkWrap = shrinkWrap;
+        });
+      }
+    }
+  }
+
+  void _onSend() {
+    if (_inputController.text.isEmpty) {
+      return;
+    }
+    _inputController.clear();
+    Future(() {
+      PrimaryScrollController.of(context).jumpTo(0);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return SliverViewObserver(
-      controller: observerController,
-      sliverContexts: () {
-        return [
-          if (_chatListCtx != null) _chatListCtx!,
-        ];
-      },
-      autoTriggerObserveTypes: const [
-        ObserverAutoTriggerObserveType.scrollEnd,
-      ],
-      triggerOnObserveType: ObserverTriggerOnObserveType.directly,
-      onObserveAll: (resultMap) {
-        final chatListModel = resultMap[_chatListCtx];
-
-        if (chatListModel != null &&
-            chatListModel.visible &&
-            chatListModel is ListViewObserveModel) {}
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
       },
       child: Scaffold(
-        body: CustomScrollView(
-          controller: scrollController,
-          slivers: <Widget>[
-            _buildAppBar(context),
-            Selector<Clint, MqttConnectionState>(
-              builder: (context, state, child) {
-                if (state == MqttConnectionState.connected) {
-                  return _chatList(context, scrollController);
-                } else {
-                  return SliverToBoxAdapter(
-                      child: Center(child: _connecting(context)));
-                }
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              GoRouter.of(context).goNamed("Chat");
+            },
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.mark_chat_unread_outlined),
+              const SizedBox(
+                width: 10,
+              ),
+              Text(
+                widget.topic.topic,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () {
+                Hive.box<ChatMessage>(widget.topic.hiveKey).clear();
               },
-              selector: (context, state) => state.clintStatus,
+            )
+          ],
+          centerTitle: true,
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(0.8), // 这里设置你想要的高度
+            child: Divider(
+              height: 0.8,
+              color: Theme.of(context)
+                  .colorScheme
+                  .outlineVariant
+                  .withOpacity(0.2), // 这里设置你想要的颜色
+            ),
+          ),
+        ),
+        resizeToAvoidBottomInset: true,
+        body: Column(
+          children: [
+            Expanded(
+              child: EasyRefresh(
+                clipBehavior: Clip.none,
+                resetAfterRefresh: true,
+                onRefresh: () {
+                  int index = topicReadIndex.loadMore();
+                  itemScrollController.jumpTo(index: index);
+                },
+                onLoad: () {},
+                footer: ListenerFooter(
+                  listenable: _listenable,
+                  triggerOffset: 0,
+                  clamping: false,
+                ),
+                header: BuilderHeader(
+                    triggerOffset: 40,
+                    clamping: false,
+                    position: IndicatorPosition.above,
+                    infiniteOffset: null,
+                    processedDuration: Duration.zero,
+                    builder: (context, state) {
+                      return Stack(
+                        children: [
+                          SizedBox(
+                            height: state.offset,
+                            width: double.infinity,
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              alignment: Alignment.center,
+                              width: double.infinity,
+                              height: 40,
+                              child: SpinKitCircle(
+                                size: 24,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          )
+                        ],
+                      );
+                    }),
+                child: _buildMessageList(context),
+              ),
+            ),
+            _buildBottom(context)
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottom(BuildContext context) {
+    return Container(
+      color: Theme.of(context).colorScheme.onInverseSurface,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: () {},
+              color: Theme.of(context).colorScheme.primary,
+              icon: const Icon(Icons.add_circle_outline),
+              visualDensity: VisualDensity.compact,
+            ),
+            IconButton(
+              onPressed: () {},
+              color: Theme.of(context).colorScheme.primary,
+              icon: const Icon(Icons.tag_faces),
+              visualDensity: VisualDensity.compact,
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: TextField(
+                  controller: _inputController,
+                  minLines: 1,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    contentPadding: EdgeInsets.zero,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surfaceVariant,
+                    prefixIcon: const Icon(Icons.abc),
+                    suffixIcon: IconButton(
+                      onPressed: () {
+                        if (_inputController.text.isNotEmpty) {
+                          _onSend();
+                        }
+                      },
+                      icon: Icon(_inputController.text.isNotEmpty
+                          ? Icons.send
+                          : Icons.keyboard_voice_outlined),
+                    ),
+                  ),
+                  onSubmitted: (_) => _onSend(),
+                ),
+              ),
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            observerController.animateTo(
-                index: 105,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeIn,
-                sliverContext: _chatListCtx!,
-                offset: calcPersistentHeaderExtent);
-          },
-          child: const Icon(Icons.arrow_downward),
-        ),
       ),
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
-    return SliverAppBar(
-      pinned: true,
-      key: appBarKey,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () {
-          GoRouter.of(context).goNamed("Chat");
-        },
-      ),
-      title: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.mark_chat_unread_outlined),
-          const SizedBox(
-            width: 10,
-          ),
-          Text(
-            widget.topic.topic,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-        ],
-      ),
-      centerTitle: true,
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(0.8), // 这里设置你想要的高度
-        child: Divider(
-          height: 0.8,
-          color: Theme.of(context)
-              .colorScheme
-              .outlineVariant
-              .withOpacity(0.2), // 这里设置你想要的颜色
-        ),
-      ),
-    );
-  }
-
-  Widget _connecting(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-            height: 300,
-            width: 300,
-            child: Lottie.asset(
-              'assets/lottie/chat_connecting.json',
-              fit: BoxFit.cover,
-              repeat: true,
-            )),
-        const SizedBox(
-          height: 5,
-          width: 200,
-          child: LinearProgressIndicator(
-            borderRadius: BorderRadius.all(Radius.circular(5)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _disconnected(BuildContext context) {
-    return const Column(
-      children: [
-        Icon(Icons.error),
-        Text('MQtt Disconnected'),
-      ],
-    );
-  }
-
-  Widget _chatList(BuildContext context, ScrollController scrollController) {
+  Widget _buildMessageList(BuildContext context) {
     return StreamProvider<List<(int, ChatMessage)>>(
-      initialData: initialData,
-      create: (BuildContext context) => context
-          .read<Clint>()
-          .messagesByTopicStream(widget.topic, initialData: initialData),
+      initialData: topicReadIndex.initialData,
+      create: (BuildContext context) => topicReadIndex.messageStream,
       child: Consumer<List<(int, ChatMessage)>>(
         builder: (context, messages, child) {
           if (messages.isEmpty) {
-            return const SliverToBoxAdapter(
-              child: Center(
-                child: Text('No Message'),
-              ),
+            return const Center(
+              child: Text('No Message'),
             );
           }
           return DetectLifecycleScrollTo(
             build:
                 (BuildContext context, AppLifecycleState state, Widget? child) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {});
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+              });
               return child!;
             },
-            child: SliverList(
-              delegate: SliverChildBuilderDelegate((ctx, index) {
-                _chatListCtx ??= ctx;
+            child: ScrollablePositionedList.builder(
+              itemCount: messages.length,
+              itemBuilder: (context, index) {
                 final message = messages[index];
                 return _buildMessageCard(context, message.$2, message.$1);
-              }, childCount: messages.length),
+              },
+              itemScrollController: itemScrollController,
+              itemPositionsListener: itemPositionsListener,
+              scrollOffsetController: scrollOffsetController,
+              reverse: false,
+              shrinkWrap: _shrinkWrap,
             ),
           );
         },
@@ -204,19 +286,18 @@ class ChatTopicPageState extends State<ChatTopicPage> {
   }
 
   Widget _buildMessageCard(
-      BuildContext context, ChatMessage message, int dbIndex) {
+      BuildContext context, ChatMessage message, int hiveIndex) {
     ValueNotifier<bool> expandShow = ValueNotifier<bool>(false);
     return VisibilityDetector(
-      key: ValueKey(dbIndex),
+      key: ValueKey(hiveIndex),
       onVisibilityChanged: (VisibilityInfo info) {
-        topicReadIndex.changeReadIndex(dbIndex);
+        topicReadIndex.changeReadIndex(hiveIndex);
       },
       child: Align(
         alignment: message.mine ? Alignment.centerRight : Alignment.centerLeft,
         child: GestureDetector(
           onTap: () {
             expandShow.value = !expandShow.value;
-
             if (expandShow.value) {
               Future.delayed(const Duration(milliseconds: 2000), () {
                 expandShow.value = false;
@@ -240,8 +321,10 @@ class ChatTopicPageState extends State<ChatTopicPage> {
                   border: Border.all(
                       color: Theme.of(context).colorScheme.outlineVariant)),
               width: 270,
-              padding: const EdgeInsets.only(right: 10, left: 10, bottom: 2),
-              margin: const EdgeInsets.only(bottom: 10, left: 8, right: 8),
+              padding:
+                  const EdgeInsets.only(right: 10, left: 10, bottom: 2, top: 2),
+              margin:
+                  const EdgeInsets.only(bottom: 10, left: 8, right: 8, top: 8),
               child: Column(
                 children: [
                   ValueListenableBuilder(
@@ -266,7 +349,7 @@ class ChatTopicPageState extends State<ChatTopicPage> {
                   const SizedBox(
                     height: 10,
                   ),
-                  Text(dbIndex.toString()),
+                  Text(hiveIndex.toString()),
                   MarkdownBody(data: message.content.raw),
                   const SizedBox(
                     height: 10,
@@ -298,13 +381,6 @@ class ChatTopicPageState extends State<ChatTopicPage> {
               )),
         ),
       ),
-    );
-  }
-
-  double calcPersistentHeaderExtent(double offset) {
-    return ObserverUtils.calcPersistentHeaderExtent(
-      key: appBarKey,
-      offset: offset,
     );
   }
 }

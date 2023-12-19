@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:hive_flutter/adapters.dart';
+import 'package:rxdart/rxdart.dart';
 
 import 'chat_message.dart';
 import 'clint_param.dart';
@@ -19,7 +22,69 @@ class TopicReadIndex {
 
   late int skipCount;
 
-  TopicReadIndex(this.topic,
+  int test = 0;
+
+  final Stream<List<(int, ChatMessage)>> _mqttMessageStream;
+
+  final StreamController<List<(int, ChatMessage)>>
+      _pageMessageStreamController =
+      StreamController<List<(int, ChatMessage)>>();
+
+  late final Stream<List<(int, ChatMessage)>> messageStream = _mqttMessageStream
+      .mergeWith([
+    _pageMessageStreamController.stream.startWith(initialData)
+  ]).scan<List<(int, ChatMessage)>>(
+    (accumulatedMessages, newMessages, _) {
+      if (newMessages.isEmpty && accumulatedMessages.isEmpty) {
+        return [];
+      }
+      if (newMessages.isEmpty) {
+        return accumulatedMessages;
+      }
+      if (newMessages.first.$1 == -1) {
+        final maxIndex =
+            accumulatedMessages.isEmpty ? -1 : accumulatedMessages.last.$1;
+
+        final newMessagesWithIndex = newMessages
+            .mapIndexed((index, msg) => (index + maxIndex + 1, msg.$2))
+            .toList();
+        test = test + 1;
+        return [...accumulatedMessages, ...newMessagesWithIndex];
+      } else {
+        return [...newMessages, ...accumulatedMessages];
+      }
+    },
+    [],
+  );
+
+  late final Stream<List<(int, ChatMessage)>> messageStreamR =
+      _mqttMessageStream.mergeWith([
+    _pageMessageStreamController.stream.startWith(initialDataR)
+  ]).scan<List<(int, ChatMessage)>>(
+    (accumulatedMessages, newMessages, _) {
+      if (newMessages.isEmpty && accumulatedMessages.isEmpty) {
+        return [];
+      }
+      if (newMessages.isEmpty) {
+        return accumulatedMessages;
+      }
+      if (newMessages.first.$1 == -1) {
+        final maxIndex =
+            accumulatedMessages.isEmpty ? -1 : accumulatedMessages.first.$1;
+
+        final newMessagesWithIndex = newMessages
+            .mapIndexed((index, msg) => (index + maxIndex + 1, msg.$2))
+            .toList();
+
+        return [...newMessagesWithIndex, ...accumulatedMessages];
+      } else {
+        return [...accumulatedMessages, ...newMessages];
+      }
+    },
+    [],
+  );
+
+  TopicReadIndex(this.topic, this._mqttMessageStream,
       {this.preloadCount = 20, this.moreMessageNumber = 30}) {
     readIndex = Hive.box(readBox).get(key, defaultValue: 0);
     final length = Hive.box<ChatMessage>(key).length;
@@ -44,37 +109,51 @@ class TopicReadIndex {
     }
   }
 
-  List<(int, ChatMessage)> get topicInitialData {
+  List<(int, ChatMessage)> get initialData {
     final box = Hive.box<ChatMessage>(key);
     final length = box.length;
 
-    List<(int, ChatMessage)> startMessages = box
+    return box
         .valuesBetween(startKey: skipCount, endKey: length)
         .mapIndexed((index, msg) => (index + skipCount, msg))
         .toList();
-
-    final reversedStartMessages = startMessages.reversed.toList();
-
-    return reversedStartMessages;
   }
 
-  List<(int, ChatMessage)> get moreData {
-    final box = Hive.box<ChatMessage>(key);
-    int startKey = skipCount - moreMessageNumber;
-    startKey = startKey < 0 ? 0 : startKey;
-    final endKey = box.length;
+  List<(int, ChatMessage)> get initialDataR {
+    return initialData.reversed.toList();
+  }
 
-    List<(int, ChatMessage)> startMessages = box
+  List<(int, ChatMessage)> get moreMessages {
+    final box = Hive.box<ChatMessage>(key);
+    int startKey =
+        skipCount - moreMessageNumber < 0 ? 0 : skipCount - moreMessageNumber;
+    int endKey = skipCount - 1 < 0 ? 0 : skipCount - 1;
+
+    if (startKey == 0 && endKey == 0) {
+      return [];
+    }
+
+    List<(int, ChatMessage)> moreMessages = box
         .valuesBetween(startKey: startKey, endKey: endKey)
         .mapIndexed((index, msg) => (index + startKey, msg))
         .toList();
 
-    skipCount = skipCount - startMessages.length;
+    skipCount = skipCount - moreMessages.length;
 
-    final reversedStartMessages = startMessages.reversed.toList();
-    return reversedStartMessages;
+    return moreMessages;
   }
 
+  List<(int, ChatMessage)> get moreMessagesR {
+    return moreMessages.reversed.toList();
+  }
 
-  ///获取手动导入的 Stream 和 mqtt的Stream
+  int loadMore() {
+    final moreMessages = this.moreMessages;
+    _pageMessageStreamController.add(moreMessages);
+    return moreMessages.length;
+  }
+
+  void loadMoreR() {
+    _pageMessageStreamController.add(moreMessagesR);
+  }
 }

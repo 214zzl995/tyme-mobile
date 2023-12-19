@@ -3,16 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:tyme/data/clint_param.dart';
 import 'package:tyme/pages/chat_page.dart';
 import 'package:tyme/pages/chat_topic_page.dart';
-import 'package:tyme/pages/chat_topic_page2.dart';
 import 'package:tyme/pages/demo_page.dart';
 import 'package:tyme/pages/guide_page.dart';
 import 'package:tyme/pages/home_page.dart';
 import 'package:tyme/pages/main_page.dart';
 import 'package:tyme/pages/root_page.dart';
 import 'package:tyme/pages/settings_page.dart';
-
-// https://github.com/flutter/packages/blob/main/packages/go_router/example/lib/others/custom_stateful_shell_route.dart
-// stateful_shell_route with animation
 
 typedef PathWidgetBuilder = Widget Function(BuildContext, GoRouterState);
 
@@ -86,7 +82,7 @@ class TymeRouteConfiguration {
             GoRouter.of(context).goNamed("Chat");
           }
         }
-        return ChatTopicPage2(topic: topic!);
+        return ChatTopicPage(topic: topic!);
       },
       openInSecondScreen: false,
       icon: const Icon(Icons.settings),
@@ -169,6 +165,8 @@ class TymeRouteConfiguration {
         ]);
   }
 }
+
+
 
 class FadeTransitionPage extends CustomTransitionPage<void> {
   FadeTransitionPage({
