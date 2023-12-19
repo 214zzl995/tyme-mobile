@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -189,6 +190,7 @@ Future<void> main() async {
   await _hiveInit();
 
   if (Platform.isAndroid) {
+    await FlutterDisplayMode.setHighRefreshRate();
     SystemUiOverlayStyle style = const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
     );

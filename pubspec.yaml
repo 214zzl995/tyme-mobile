@@ -31,6 +31,10 @@ dependencies:
   crypto: ^3.0.3
   visibility_detector: ^0.4.0+2
   scrollview_observer: ^1.19.0
+  flutter_displaymode: ^0.6.0
+  easy_refresh: ^3.3.3+1
+  flutter_spinkit: ^5.2.0
+  scrollable_positioned_list: ^0.3.8
 
 dev_dependencies:
   flutter_test:
@@ -45,6 +49,7 @@ flutter:
     - assets/
     - assets/icons/
     - assets/lottie/
+    - assets/image/
 
 flutter_native_splash:
   color: "#42a5f5"

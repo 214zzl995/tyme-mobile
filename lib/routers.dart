@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:tyme/data/clint_param.dart';
 import 'package:tyme/pages/chat_page.dart';
 import 'package:tyme/pages/chat_topic_page.dart';
+import 'package:tyme/pages/chat_topic_page2.dart';
 import 'package:tyme/pages/demo_page.dart';
 import 'package:tyme/pages/guide_page.dart';
 import 'package:tyme/pages/home_page.dart';
@@ -85,7 +86,7 @@ class TymeRouteConfiguration {
             GoRouter.of(context).goNamed("Chat");
           }
         }
-        return ChatTopicPage(topic: topic!);
+        return ChatTopicPage2(topic: topic!);
       },
       openInSecondScreen: false,
       icon: const Icon(Icons.settings),

@@ -25,7 +25,6 @@ class ChatTopicPageState extends State<ChatTopicPage> {
   BuildContext? _chatListCtx;
 
   GlobalKey appBarKey = GlobalKey();
-  GlobalKey readIndexKey = GlobalKey();
 
   ScrollController scrollController = ScrollController();
 
@@ -38,8 +37,6 @@ class ChatTopicPageState extends State<ChatTopicPage> {
   @override
   void initState() {
     observerController = SliverObserverController(controller: scrollController);
-
-    observerController.initialIndex = topicReadIndex.readIndex;
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       observerController.dispatchOnceObserve(
@@ -62,7 +59,13 @@ class ChatTopicPageState extends State<ChatTopicPage> {
         ObserverAutoTriggerObserveType.scrollEnd,
       ],
       triggerOnObserveType: ObserverTriggerOnObserveType.directly,
-      onObserveAll: (resultMap) {},
+      onObserveAll: (resultMap) {
+        final chatListModel = resultMap[_chatListCtx];
+
+        if (chatListModel != null &&
+            chatListModel.visible &&
+            chatListModel is ListViewObserveModel) {}
+      },
       child: Scaffold(
         body: CustomScrollView(
           controller: scrollController,
@@ -171,7 +174,7 @@ class ChatTopicPageState extends State<ChatTopicPage> {
       initialData: initialData,
       create: (BuildContext context) => context
           .read<Clint>()
-          .msgByTopic(widget.topic, initialData: initialData),
+          .messagesByTopicStream(widget.topic, initialData: initialData),
       child: Consumer<List<(int, ChatMessage)>>(
         builder: (context, messages, child) {
           if (messages.isEmpty) {
@@ -191,11 +194,7 @@ class ChatTopicPageState extends State<ChatTopicPage> {
               delegate: SliverChildBuilderDelegate((ctx, index) {
                 _chatListCtx ??= ctx;
                 final message = messages[index];
-                final key = message.$1 == topicReadIndex.readIndex
-                    ? readIndexKey
-                    : null;
-                return _buildMessageCard(context, message.$2, message.$1,
-                    key: key);
+                return _buildMessageCard(context, message.$2, message.$1);
               }, childCount: messages.length),
             ),
           );
@@ -205,103 +204,98 @@ class ChatTopicPageState extends State<ChatTopicPage> {
   }
 
   Widget _buildMessageCard(
-      BuildContext context, ChatMessage message, int dbIndex,
-      {GlobalKey? key}) {
+      BuildContext context, ChatMessage message, int dbIndex) {
     ValueNotifier<bool> expandShow = ValueNotifier<bool>(false);
-    return Container(
-      key: key,
-      child: VisibilityDetector(
-        key: ValueKey(dbIndex),
-        onVisibilityChanged: (VisibilityInfo info) {
-          topicReadIndex.changeReadIndex(dbIndex);
-        },
-        child: Align(
-          alignment:
-              message.mine ? Alignment.centerRight : Alignment.centerLeft,
-          child: GestureDetector(
-            onTap: () {
-              expandShow.value = !expandShow.value;
+    return VisibilityDetector(
+      key: ValueKey(dbIndex),
+      onVisibilityChanged: (VisibilityInfo info) {
+        topicReadIndex.changeReadIndex(dbIndex);
+      },
+      child: Align(
+        alignment: message.mine ? Alignment.centerRight : Alignment.centerLeft,
+        child: GestureDetector(
+          onTap: () {
+            expandShow.value = !expandShow.value;
 
-              if (expandShow.value) {
-                Future.delayed(const Duration(milliseconds: 2000), () {
-                  expandShow.value = false;
-                });
-              }
-            },
-            onLongPressStart: (details) {
-              expandShow.value = true;
-            },
-            onLongPressEnd: (details) {
-              Future.delayed(const Duration(milliseconds: 500), () {
+            if (expandShow.value) {
+              Future.delayed(const Duration(milliseconds: 2000), () {
                 expandShow.value = false;
               });
-            },
-            child: Container(
-                decoration: BoxDecoration(
-                    color: message.mine
-                        ? Theme.of(context).colorScheme.secondaryContainer
-                        : Theme.of(context).colorScheme.onPrimary,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                        color: Theme.of(context).colorScheme.outlineVariant)),
-                width: 270,
-                padding: const EdgeInsets.only(right: 10, left: 10, bottom: 2),
-                margin: const EdgeInsets.only(bottom: 10, left: 8, right: 8),
-                child: Column(
-                  children: [
-                    ValueListenableBuilder(
-                        valueListenable: expandShow,
-                        builder:
-                            (BuildContext context, bool show, Widget? child) {
-                          return Row(
-                            children: [
-                              Text(
-                                show ? message.topic.topic : "",
+            }
+          },
+          onLongPressStart: (details) {
+            expandShow.value = true;
+          },
+          onLongPressEnd: (details) {
+            Future.delayed(const Duration(milliseconds: 500), () {
+              expandShow.value = false;
+            });
+          },
+          child: Container(
+              decoration: BoxDecoration(
+                  color: message.mine
+                      ? Theme.of(context).colorScheme.secondaryContainer
+                      : Theme.of(context).colorScheme.onPrimary,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: Theme.of(context).colorScheme.outlineVariant)),
+              width: 270,
+              padding: const EdgeInsets.only(right: 10, left: 10, bottom: 2),
+              margin: const EdgeInsets.only(bottom: 10, left: 8, right: 8),
+              child: Column(
+                children: [
+                  ValueListenableBuilder(
+                      valueListenable: expandShow,
+                      builder:
+                          (BuildContext context, bool show, Widget? child) {
+                        return Row(
+                          children: [
+                            Text(
+                              show ? message.topic.topic : "",
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall!
+                                  .copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline),
+                            ),
+                          ],
+                        );
+                      }),
+                  const SizedBox(
+                    height: 10,
+                  ),
+                  Text(dbIndex.toString()),
+                  MarkdownBody(data: message.content.raw),
+                  const SizedBox(
+                    height: 10,
+                  ),
+                  ValueListenableBuilder(
+                      valueListenable: expandShow,
+                      builder:
+                          (BuildContext context, bool show, Widget? child) {
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                                show
+                                    ? DateTime.fromMillisecondsSinceEpoch(
+                                            message.timestamp)
+                                        .toCustomString()
+                                    : "",
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall!
                                     .copyWith(
                                         color: Theme.of(context)
                                             .colorScheme
-                                            .outline),
-                              ),
-                            ],
-                          );
-                        }),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    Text(dbIndex.toString()),
-                    MarkdownBody(data: message.content.raw),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    ValueListenableBuilder(
-                        valueListenable: expandShow,
-                        builder:
-                            (BuildContext context, bool show, Widget? child) {
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Text(
-                                  show
-                                      ? DateTime.fromMillisecondsSinceEpoch(
-                                              message.timestamp)
-                                          .toCustomString()
-                                      : "",
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall!
-                                      .copyWith(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .outline)),
-                            ],
-                          );
-                        }),
-                  ],
-                )),
-          ),
+                                            .outline)),
+                          ],
+                        );
+                      }),
+                ],
+              )),
         ),
       ),
     );

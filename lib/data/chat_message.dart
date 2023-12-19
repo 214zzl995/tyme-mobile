@@ -39,7 +39,7 @@ class ChatMessage {
   }
 
   insert() async {
-    final key = topic.header.getHiveKey();
+    final key = topic.header.hiveKey;
     await Hive.box<ChatMessage>(key).add(this);
   }
 }

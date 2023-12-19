@@ -142,8 +142,5 @@ class SubscribeTopic {
 
   SubscribeTopic.empty();
 
-  String getHiveKey() {
-    String mKey = "tyme_chat_$topic";
-    return CryptoUtils.md5Encrypt(mKey);
-  }
+  String get hiveKey => CryptoUtils.md5Encrypt("tyme_chat_$topic");
 }

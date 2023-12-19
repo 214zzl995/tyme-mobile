@@ -113,7 +113,7 @@ class Clint extends ChangeNotifier {
   }
 
   /// 获取特定topic的Stream
-  Stream<List<(int, ChatMessage)>> msgByTopic(SubscribeTopic topic,
+  Stream<List<(int, ChatMessage)>> messagesByTopicStream(SubscribeTopic topic,
       {List<(int, ChatMessage)> initialData = const []}) {
     MqttTopicFilter topicFilter =
         MqttTopicFilter(topic.topic, mqttClint.updates);
@@ -125,21 +125,22 @@ class Clint extends ChangeNotifier {
         .startWith(initialData)
         .scan<List<(int, ChatMessage)>>(
       (accumulatedMessages, newMessages, _) {
-        final accumulatedIsNotEmptyIndex =
-            accumulatedMessages.isNotEmpty ? 1 : 0;
-        final maxIndex =
-            accumulatedMessages.isNotEmpty ? accumulatedMessages.last.$1 : 0;
+        if (accumulatedMessages.isEmpty) {
+          return newMessages;
+        }
+
+        final maxIndex = accumulatedMessages.first.$1;
 
         final newMessagesWithIndex = newMessages
-            .mapIndexed((index, msg) =>
-                (index + maxIndex + accumulatedIsNotEmptyIndex, msg.$2))
+            .mapIndexed((index, msg) => (index + maxIndex + 1, msg.$2))
             .toList();
 
-        return [...accumulatedMessages, ...newMessagesWithIndex];
+        return [...newMessagesWithIndex, ...accumulatedMessages];
       },
       [],
     );
   }
+
 
   void onDisconnected() {
     debugPrint('tyme::client::OnDisconnected 客户端回调 - 客户端断开连接');
@@ -186,7 +187,7 @@ class Clint extends ChangeNotifier {
     clintParam.subscribeTopics.add(subscribeTopic);
 
     Hive.box('tyme_config').put("clint_param", clintParam);
-    Hive.openBox(subscribeTopic.getHiveKey());
+    Hive.openBox(subscribeTopic.hiveKey);
     notifyListeners();
   }
 
@@ -204,7 +205,7 @@ class Clint extends ChangeNotifier {
 
     Hive.box('tyme_config').put("clint_param", clintParam);
 
-    final key = subscribeTopic.getHiveKey();
+    final key = subscribeTopic.hiveKey;
     Hive.box(key).deleteFromDisk();
     Hive.box(key).close();
 
