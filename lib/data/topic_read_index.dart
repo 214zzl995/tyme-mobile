@@ -41,6 +41,9 @@ class TopicReadIndex {
       if (newMessages.isEmpty) {
         return accumulatedMessages;
       }
+      if (newMessages.first.$1 == -2) {
+        return [];
+      }
       if (newMessages.first.$1 == -1) {
         final maxIndex =
             accumulatedMessages.isEmpty ? -1 : accumulatedMessages.last.$1;
@@ -52,33 +55,6 @@ class TopicReadIndex {
         return [...accumulatedMessages, ...newMessagesWithIndex];
       } else {
         return [...newMessages, ...accumulatedMessages];
-      }
-    },
-    [],
-  );
-
-  late final Stream<List<(int, ChatMessage)>> messageStreamR =
-      _mqttMessageStream.mergeWith([
-    _pageMessageStreamController.stream.startWith(initialDataR)
-  ]).scan<List<(int, ChatMessage)>>(
-    (accumulatedMessages, newMessages, _) {
-      if (newMessages.isEmpty && accumulatedMessages.isEmpty) {
-        return [];
-      }
-      if (newMessages.isEmpty) {
-        return accumulatedMessages;
-      }
-      if (newMessages.first.$1 == -1) {
-        final maxIndex =
-            accumulatedMessages.isEmpty ? -1 : accumulatedMessages.first.$1;
-
-        final newMessagesWithIndex = newMessages
-            .mapIndexed((index, msg) => (index + maxIndex + 1, msg.$2))
-            .toList();
-
-        return [...newMessagesWithIndex, ...accumulatedMessages];
-      } else {
-        return [...accumulatedMessages, ...newMessages];
       }
     },
     [],
@@ -96,6 +72,7 @@ class TopicReadIndex {
         : readIndex > 10
             ? readIndex - 10
             : 0;
+
 
     Hive.box(readBox).listenable(keys: [key]).addListener(() {
       debugPrint("read_index changed");
@@ -119,10 +96,6 @@ class TopicReadIndex {
         .toList();
   }
 
-  List<(int, ChatMessage)> get initialDataR {
-    return initialData.reversed.toList();
-  }
-
   List<(int, ChatMessage)> get moreMessages {
     final box = Hive.box<ChatMessage>(key);
     int startKey =
@@ -143,17 +116,17 @@ class TopicReadIndex {
     return moreMessages;
   }
 
-  List<(int, ChatMessage)> get moreMessagesR {
-    return moreMessages.reversed.toList();
-  }
-
   int loadMore() {
     final moreMessages = this.moreMessages;
     _pageMessageStreamController.add(moreMessages);
     return moreMessages.length;
   }
 
-  void loadMoreR() {
-    _pageMessageStreamController.add(moreMessagesR);
+  void removeAll() async {
+    await Hive.box<ChatMessage>(key).clear();
+    await Hive.box(readBox).put(key, 0);
+    skipCount = 0;
+    readIndex = 0;
+    _pageMessageStreamController.add([(-2, ChatMessage())]);
   }
 }

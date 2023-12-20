@@ -5,7 +5,6 @@ import 'package:easy_refresh/easy_refresh.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -32,9 +31,14 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
   bool _shrinkWrap = false;
   double? _viewportDimension;
 
+  int preloadCount = 40;
+
   late TopicReadIndex topicReadIndex = TopicReadIndex(
       widget.topic, context.read<Clint>().messagesByTopicStream(widget.topic),
-      preloadCount: 30);
+      preloadCount: preloadCount);
+
+  late int initialScrollIndex =
+      topicReadIndex.readIndex - topicReadIndex.skipCount;
 
   final ItemScrollController itemScrollController = ItemScrollController();
 
@@ -48,6 +52,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
   @override
   void initState() {
     super.initState();
+    debugPrint(initialScrollIndex.toString());
     _inputController = TextEditingController();
     _inputController.addListener(() {
       setState(() {});
@@ -120,7 +125,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
             IconButton(
               icon: const Icon(Icons.delete_outline),
               onPressed: () {
-                Hive.box<ChatMessage>(widget.topic.hiveKey).clear();
+                topicReadIndex.removeAll();
               },
             )
           ],
@@ -142,12 +147,11 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
             Expanded(
               child: EasyRefresh(
                 clipBehavior: Clip.none,
-                resetAfterRefresh: true,
                 onRefresh: () {
-                  int index = topicReadIndex.loadMore();
-                  itemScrollController.jumpTo(index: index);
+                  int len = topicReadIndex.loadMore();
+                  itemScrollController.jumpTo(index: len);
                 },
-                onLoad: () {},
+                // onLoad: () {},
                 footer: ListenerFooter(
                   listenable: _listenable,
                   triggerOffset: 0,
@@ -183,7 +187,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
                         ],
                       );
                     }),
-                child: _buildMessageList(context),
+                child: _buildMessagesList(context),
               ),
             ),
             _buildBottom(context)
@@ -195,6 +199,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
 
   Widget _buildBottom(BuildContext context) {
     return Container(
+      height: 100,
       color: Theme.of(context).colorScheme.onInverseSurface,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
@@ -249,7 +254,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
     );
   }
 
-  Widget _buildMessageList(BuildContext context) {
+  Widget _buildMessagesList(BuildContext context) {
     return StreamProvider<List<(int, ChatMessage)>>(
       initialData: topicReadIndex.initialData,
       create: (BuildContext context) => topicReadIndex.messageStream,
@@ -263,8 +268,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
           return DetectLifecycleScrollTo(
             build:
                 (BuildContext context, AppLifecycleState state, Widget? child) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-              });
+              WidgetsBinding.instance.addPostFrameCallback((_) {});
               return child!;
             },
             child: ScrollablePositionedList.builder(
@@ -276,6 +280,8 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
               itemScrollController: itemScrollController,
               itemPositionsListener: itemPositionsListener,
               scrollOffsetController: scrollOffsetController,
+              initialScrollIndex: 39,
+              initialAlignment: 0.83,
               reverse: false,
               shrinkWrap: _shrinkWrap,
             ),
