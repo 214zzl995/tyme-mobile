@@ -6,7 +6,6 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../components/detect_lifecycle.dart';
@@ -33,6 +32,8 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
 
   int preloadCount = 40;
 
+  ScrollController messagesListController = ScrollController();
+
   late TopicReadIndex topicReadIndex = TopicReadIndex(
       widget.topic, context.read<Clint>().messagesByTopicStream(widget.topic),
       preloadCount: preloadCount);
@@ -40,22 +41,18 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
   late int initialScrollIndex =
       topicReadIndex.readIndex - topicReadIndex.skipCount;
 
-  final ItemScrollController itemScrollController = ItemScrollController();
-
-  final ScrollOffsetController scrollOffsetController =
-      ScrollOffsetController();
-  final ItemPositionsListener itemPositionsListener =
-      ItemPositionsListener.create();
-
   double currentPosition = 0;
 
   @override
   void initState() {
     super.initState();
-    debugPrint(initialScrollIndex.toString());
     _inputController = TextEditingController();
     _inputController.addListener(() {
       setState(() {});
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      messagesListController
+          .jumpTo(messagesListController.position.maxScrollExtent);
     });
     _listenable.addListener(_onHeaderChange);
   }
@@ -148,8 +145,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
               child: EasyRefresh(
                 clipBehavior: Clip.none,
                 onRefresh: () {
-                  int len = topicReadIndex.loadMore();
-                  itemScrollController.jumpTo(index: len);
+                  topicReadIndex.loadMore();
                 },
                 // onLoad: () {},
                 footer: ListenerFooter(
@@ -271,17 +267,13 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
               WidgetsBinding.instance.addPostFrameCallback((_) {});
               return child!;
             },
-            child: ScrollablePositionedList.builder(
+            child: ListView.builder(
+              controller: messagesListController,
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 final message = messages[index];
                 return _buildMessageCard(context, message.$2, message.$1);
               },
-              itemScrollController: itemScrollController,
-              itemPositionsListener: itemPositionsListener,
-              scrollOffsetController: scrollOffsetController,
-              initialScrollIndex: 39,
-              initialAlignment: 0.83,
               reverse: false,
               shrinkWrap: _shrinkWrap,
             ),
