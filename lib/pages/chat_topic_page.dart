@@ -45,6 +45,8 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
 
   double currentPosition = 0;
 
+  late double _anchor = topicReadIndex.pageInitialData.isEmpty ? 0 : 1;
+
   @override
   void initState() {
     super.initState();
@@ -143,6 +145,9 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
                 clipBehavior: Clip.none,
                 onRefresh: () {
                   topicReadIndex.loadMore();
+                  setState(() {
+                    _anchor = 0;
+                  });
                 },
                 // onLoad: () {},
                 footer: ListenerFooter(
@@ -184,10 +189,10 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
                   controller: messagesListController,
                   center: centerKey,
                   shrinkWrap: _shrinkWrap,
-                  //计算数据偏移量 当前n条数据偏移量大于 屏幕高度时 anchor为1
+                  // 计算数据偏移量 当前n条数据偏移量大于 屏幕高度时 anchor为1
                   // 当小于屏幕高度时 anchor为 组件高度/(屏幕高度-header高度+bottom高度)
                   // 当高度不存在时 anchor为 0
-                  anchor: 1,
+                  anchor: _anchor,
                   slivers: [
                     _buildPageMessagesList(context),
                     SliverPadding(
@@ -212,13 +217,6 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
       create: (BuildContext context) => topicReadIndex.pageMessageStream,
       child: Consumer<List<(int, ChatMessage)>>(
         builder: (context, messages, child) {
-          if (messages.isEmpty) {
-            return const SliverToBoxAdapter(
-              child: Center(
-                child: Text('No Message'),
-              ),
-            );
-          }
           return DetectLifecycleScrollTo(
             build:
                 (BuildContext context, AppLifecycleState state, Widget? child) {

@@ -21,6 +21,11 @@ class TopicReadIndex {
   late int moreMessageNumber;
 
   late int skipCount;
+  bool _remove = false;
+
+  final StreamController<List<(int, ChatMessage)>>
+      _mqttMessageStreamController =
+      StreamController<List<(int, ChatMessage)>>();
 
   final Stream<List<(int, ChatMessage)>> _mqttMessageStream;
 
@@ -36,37 +41,12 @@ class TopicReadIndex {
 
   List<(int, ChatMessage)> get pageInitialData => _pageInitialData;
 
-  late final Stream<List<(int, ChatMessage)>> messageStream = _mqttMessageStream
-      .mergeWith([
-    _pageMessageStreamController.stream.startWith(initialData)
-  ]).scan<List<(int, ChatMessage)>>(
-    (accumulatedMessages, newMessages, _) {
-      if (newMessages.isEmpty && accumulatedMessages.isEmpty) {
-        return [];
-      }
-      if (newMessages.isEmpty) {
-        return accumulatedMessages;
-      }
-      if (newMessages.first.$1 == -2) {
-        return [];
-      }
-      if (newMessages.first.$1 == -1) {
-        final maxIndex =
-            accumulatedMessages.isEmpty ? -1 : accumulatedMessages.last.$1;
-
-        final newMessagesWithIndex = newMessages
-            .mapIndexed((index, msg) => (index + maxIndex + 1, msg.$2))
-            .toList();
-        return [...accumulatedMessages, ...newMessagesWithIndex];
-      } else {
-        return [...newMessages, ...accumulatedMessages];
-      }
-    },
-    [],
-  );
-
   Stream<List<(int, ChatMessage)>> get mqttMessageStream =>
-      _mqttMessageStream.scan((accumulated, value, index) {
+      _mqttMessageStream.mergeWith([_mqttMessageStreamController.stream]).scan(
+          (accumulated, value, index) {
+        if (value.isEmpty) {
+          return [];
+        }
         final accumulatedMaxIndex =
             accumulated.isEmpty ? _oldMaxIndex : accumulated.last.$1;
 
@@ -77,9 +57,17 @@ class TopicReadIndex {
       }, []);
 
   Stream<List<(int, ChatMessage)>> get pageMessageStream =>
-      _pageMessageStreamController.stream
-          .startWith(_pageInitialData)
-          .scan((accumulated, value, index) => [...accumulated, ...value], []);
+      _pageMessageStreamController.stream.startWith(_pageInitialData).scan(
+          (accumulated, value, index) {
+        if (accumulated.isNotEmpty &&
+            accumulated.last.$1 == 0 &&
+            value.isEmpty &&
+            _remove) {
+          _remove = false;
+          return [];
+        }
+        return [...accumulated, ...value];
+      }, []);
 
   TopicReadIndex(this.topic, this._mqttMessageStream,
       {this.preloadCount = 20, this.moreMessageNumber = 30}) {
@@ -147,6 +135,8 @@ class TopicReadIndex {
     await Hive.box(readBox).put(key, 0);
     skipCount = 0;
     readIndex = 0;
-    _pageMessageStreamController.add([(-2, ChatMessage())]);
+    _remove = true;
+    _pageMessageStreamController.add([]);
+    _mqttMessageStreamController.add([]);
   }
 }
