@@ -122,6 +122,9 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
               icon: const Icon(Icons.delete_outline),
               onPressed: () {
                 topicReadIndex.removeAll();
+                setState(() {
+                  _anchor = 0;
+                });
               },
             )
           ],
@@ -145,9 +148,6 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
                 clipBehavior: Clip.none,
                 onRefresh: () {
                   topicReadIndex.loadMore();
-                  setState(() {
-                    _anchor = 0;
-                  });
                 },
                 // onLoad: () {},
                 footer: ListenerFooter(
