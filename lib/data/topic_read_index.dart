@@ -22,13 +22,19 @@ class TopicReadIndex {
 
   late int skipCount;
 
-  int test = 0;
-
   final Stream<List<(int, ChatMessage)>> _mqttMessageStream;
 
   final StreamController<List<(int, ChatMessage)>>
       _pageMessageStreamController =
       StreamController<List<(int, ChatMessage)>>();
+
+  late final List<(int, ChatMessage)> _pageInitialData =
+      initialData.reversed.toList();
+
+  late final _oldMaxIndex =
+      _pageInitialData.isEmpty ? -1 : _pageInitialData.first.$1;
+
+  List<(int, ChatMessage)> get pageInitialData => _pageInitialData;
 
   late final Stream<List<(int, ChatMessage)>> messageStream = _mqttMessageStream
       .mergeWith([
@@ -51,7 +57,6 @@ class TopicReadIndex {
         final newMessagesWithIndex = newMessages
             .mapIndexed((index, msg) => (index + maxIndex + 1, msg.$2))
             .toList();
-        test = test + 1;
         return [...accumulatedMessages, ...newMessagesWithIndex];
       } else {
         return [...newMessages, ...accumulatedMessages];
@@ -59,6 +64,22 @@ class TopicReadIndex {
     },
     [],
   );
+
+  Stream<List<(int, ChatMessage)>> get mqttMessageStream =>
+      _mqttMessageStream.scan((accumulated, value, index) {
+        final accumulatedMaxIndex =
+            accumulated.isEmpty ? _oldMaxIndex : accumulated.last.$1;
+
+        final newMessages = value.mapIndexed(
+            (index, message) => (index + accumulatedMaxIndex + 1, message.$2));
+
+        return [...accumulated, ...newMessages];
+      }, []);
+
+  Stream<List<(int, ChatMessage)>> get pageMessageStream =>
+      _pageMessageStreamController.stream
+          .startWith(_pageInitialData)
+          .scan((accumulated, value, index) => [...accumulated, ...value], []);
 
   TopicReadIndex(this.topic, this._mqttMessageStream,
       {this.preloadCount = 20, this.moreMessageNumber = 30}) {
@@ -72,7 +93,6 @@ class TopicReadIndex {
         : readIndex > 10
             ? readIndex - 10
             : 0;
-
 
     Hive.box(readBox).listenable(keys: [key]).addListener(() {
       debugPrint("read_index changed");
@@ -117,7 +137,7 @@ class TopicReadIndex {
   }
 
   int loadMore() {
-    final moreMessages = this.moreMessages;
+    final moreMessages = this.moreMessages.reversed.toList();
     _pageMessageStreamController.add(moreMessages);
     return moreMessages.length;
   }

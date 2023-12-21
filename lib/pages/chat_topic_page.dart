@@ -27,6 +27,8 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
   final _listenable = IndicatorStateListenable();
   late final TextEditingController _inputController;
 
+  GlobalKey centerKey = GlobalKey();
+
   bool _shrinkWrap = false;
   double? _viewportDimension;
 
@@ -50,11 +52,6 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
     _inputController.addListener(() {
       setState(() {});
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      messagesListController
-          .jumpTo(messagesListController.position.maxScrollExtent);
-    });
-    _listenable.addListener(_onHeaderChange);
   }
 
   @override
@@ -183,7 +180,23 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
                         ],
                       );
                     }),
-                child: _buildMessagesList(context),
+                child: CustomScrollView(
+                  controller: messagesListController,
+                  center: centerKey,
+                  shrinkWrap: _shrinkWrap,
+                  //计算数据偏移量 当前n条数据偏移量大于 屏幕高度时 anchor为1
+                  // 当小于屏幕高度时 anchor为 组件高度/(屏幕高度-header高度+bottom高度)
+                  // 当高度不存在时 anchor为 0
+                  anchor: 1,
+                  slivers: [
+                    _buildPageMessagesList(context),
+                    SliverPadding(
+                      padding: EdgeInsets.zero,
+                      key: centerKey,
+                    ),
+                    _buildMqttMessagesList(context),
+                  ],
+                ),
               ),
             ),
             _buildBottom(context)
@@ -193,72 +206,17 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
     );
   }
 
-  Widget _buildBottom(BuildContext context) {
-    return Container(
-      height: 100,
-      color: Theme.of(context).colorScheme.onInverseSurface,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: () {},
-              color: Theme.of(context).colorScheme.primary,
-              icon: const Icon(Icons.add_circle_outline),
-              visualDensity: VisualDensity.compact,
-            ),
-            IconButton(
-              onPressed: () {},
-              color: Theme.of(context).colorScheme.primary,
-              icon: const Icon(Icons.tag_faces),
-              visualDensity: VisualDensity.compact,
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: TextField(
-                  controller: _inputController,
-                  minLines: 1,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    contentPadding: EdgeInsets.zero,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.surfaceVariant,
-                    prefixIcon: const Icon(Icons.abc),
-                    suffixIcon: IconButton(
-                      onPressed: () {
-                        if (_inputController.text.isNotEmpty) {
-                          _onSend();
-                        }
-                      },
-                      icon: Icon(_inputController.text.isNotEmpty
-                          ? Icons.send
-                          : Icons.keyboard_voice_outlined),
-                    ),
-                  ),
-                  onSubmitted: (_) => _onSend(),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMessagesList(BuildContext context) {
+  Widget _buildPageMessagesList(BuildContext context) {
     return StreamProvider<List<(int, ChatMessage)>>(
-      initialData: topicReadIndex.initialData,
-      create: (BuildContext context) => topicReadIndex.messageStream,
+      initialData: topicReadIndex.pageInitialData,
+      create: (BuildContext context) => topicReadIndex.pageMessageStream,
       child: Consumer<List<(int, ChatMessage)>>(
         builder: (context, messages, child) {
           if (messages.isEmpty) {
-            return const Center(
-              child: Text('No Message'),
+            return const SliverToBoxAdapter(
+              child: Center(
+                child: Text('No Message'),
+              ),
             );
           }
           return DetectLifecycleScrollTo(
@@ -267,15 +225,37 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
               WidgetsBinding.instance.addPostFrameCallback((_) {});
               return child!;
             },
-            child: ListView.builder(
-              controller: messagesListController,
+            child: SliverList.builder(
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 final message = messages[index];
                 return _buildMessageCard(context, message.$2, message.$1);
               },
-              reverse: false,
-              shrinkWrap: _shrinkWrap,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMqttMessagesList(BuildContext context) {
+    return StreamProvider<List<(int, ChatMessage)>>(
+      initialData: const [],
+      create: (BuildContext context) => topicReadIndex.mqttMessageStream,
+      child: Consumer<List<(int, ChatMessage)>>(
+        builder: (context, messages, child) {
+          return DetectLifecycleScrollTo(
+            build:
+                (BuildContext context, AppLifecycleState state, Widget? child) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {});
+              return child!;
+            },
+            child: SliverList.builder(
+              itemCount: messages.length,
+              itemBuilder: (context, index) {
+                final message = messages[index];
+                return _buildMessageCard(context, message.$2, message.$1);
+              },
             ),
           );
         },
@@ -377,6 +357,63 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
                       }),
                 ],
               )),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottom(BuildContext context) {
+    return Container(
+      height: 100,
+      color: Theme.of(context).colorScheme.onInverseSurface,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: () {},
+              color: Theme.of(context).colorScheme.primary,
+              icon: const Icon(Icons.add_circle_outline),
+              visualDensity: VisualDensity.compact,
+            ),
+            IconButton(
+              onPressed: () {},
+              color: Theme.of(context).colorScheme.primary,
+              icon: const Icon(Icons.tag_faces),
+              visualDensity: VisualDensity.compact,
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: TextField(
+                  controller: _inputController,
+                  minLines: 1,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    contentPadding: EdgeInsets.zero,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surfaceVariant,
+                    prefixIcon: const Icon(Icons.abc),
+                    suffixIcon: IconButton(
+                      onPressed: () {
+                        if (_inputController.text.isNotEmpty) {
+                          _onSend();
+                        }
+                      },
+                      icon: Icon(_inputController.text.isNotEmpty
+                          ? Icons.send
+                          : Icons.keyboard_voice_outlined),
+                    ),
+                  ),
+                  onSubmitted: (_) => _onSend(),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
