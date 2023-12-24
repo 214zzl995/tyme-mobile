@@ -8,7 +8,7 @@ import 'package:rxdart/rxdart.dart';
 import 'chat_message.dart';
 import 'clint_param.dart';
 
-class TopicReadIndex {
+class TopicChatData {
   static String readBox = "tyme_chat_read_index";
 
   late String key = topic.hiveKey;
@@ -33,11 +33,16 @@ class TopicReadIndex {
       _pageMessageStreamController =
       StreamController<List<(int, ChatMessage)>>();
 
-  late final List<(int, ChatMessage)> _pageInitialData =
-      initialData.reversed.toList();
+  late List<(int, ChatMessage)> _pageInitialData =
+      _initialData.reversed.toList();
 
   late final _oldMaxIndex =
       _pageInitialData.isEmpty ? -1 : _pageInitialData.first.$1;
+
+  late final ValueNotifier _emptyMessage =
+      ValueNotifier(_pageInitialData.isEmpty);
+
+  ValueNotifier get emptyMessage => _emptyMessage;
 
   List<(int, ChatMessage)> get pageInitialData => _pageInitialData;
 
@@ -47,6 +52,10 @@ class TopicReadIndex {
         if (value.isEmpty) {
           return [];
         }
+        if (emptyMessage.value) {
+          emptyMessage.value = false;
+        }
+
         final accumulatedMaxIndex =
             accumulated.isEmpty ? _oldMaxIndex : accumulated.last.$1;
 
@@ -69,9 +78,9 @@ class TopicReadIndex {
         return [...accumulated, ...value];
       }, []);
 
-  TopicReadIndex(this.topic, this._mqttMessageStream,
+  TopicChatData(this.topic, this._mqttMessageStream,
       {this.preloadCount = 20, this.moreMessageNumber = 30}) {
-    readIndex = Hive.box(readBox).get(key, defaultValue: 0);
+    readIndex = Hive.box(readBox).get(key, defaultValue: -1);
     final length = Hive.box<ChatMessage>(key).length;
 
     final normalBegin = length > preloadCount ? length - preloadCount : 0;
@@ -83,18 +92,20 @@ class TopicReadIndex {
             : 0;
 
     Hive.box(readBox).listenable(keys: [key]).addListener(() {
-      debugPrint("read_index changed");
-      readIndex = Hive.box(readBox).get(key);
+      final readIndex = Hive.box(readBox).get(key);
+      debugPrint("read_index changed,index:$readIndex");
+      this.readIndex = readIndex;
     });
   }
 
-  void changeReadIndex(int index) {
+  void changeReadIndex(int index)  {
     if (index > readIndex) {
+      readIndex = index;
       Hive.box(readBox).put(key, index);
     }
   }
 
-  List<(int, ChatMessage)> get initialData {
+  List<(int, ChatMessage)> get _initialData {
     final box = Hive.box<ChatMessage>(key);
     final length = box.length;
 
@@ -124,19 +135,22 @@ class TopicReadIndex {
     return moreMessages;
   }
 
-  int loadMore() {
+  void loadMore() {
     final moreMessages = this.moreMessages.reversed.toList();
     _pageMessageStreamController.add(moreMessages);
-    return moreMessages.length;
   }
 
   void removeAll() async {
     await Hive.box<ChatMessage>(key).clear();
-    await Hive.box(readBox).put(key, 0);
+    await Hive.box(readBox).put(key, -1);
     skipCount = 0;
     readIndex = 0;
     _remove = true;
     _pageMessageStreamController.add([]);
     _mqttMessageStreamController.add([]);
+    _pageInitialData = [];
+    if (!emptyMessage.value) {
+      emptyMessage.value = true;
+    }
   }
 }

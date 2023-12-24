@@ -5,13 +5,16 @@ import 'package:easy_refresh/easy_refresh.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
+import 'package:tyme/components/slide_fade_transition.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+import '../components/dashed_line_message.dart';
 import '../components/detect_lifecycle.dart';
 import '../data/chat_message.dart';
 import '../data/clint_param.dart';
-import '../data/topic_read_index.dart';
+import '../data/topic_chat_data.dart';
 import '../provider/clint.dart';
 
 class ChatTopicPage extends StatefulWidget {
@@ -24,28 +27,33 @@ class ChatTopicPage extends StatefulWidget {
 }
 
 class _ChatTopicPageState extends State<ChatTopicPage> {
-  final _listenable = IndicatorStateListenable();
   late final TextEditingController _inputController;
 
-  GlobalKey centerKey = GlobalKey();
-
-  bool _shrinkWrap = false;
-  double? _viewportDimension;
+  final GlobalKey _centerKey = GlobalKey();
+  final GlobalKey _appBarKey = GlobalKey();
 
   int preloadCount = 40;
 
   ScrollController messagesListController = ScrollController();
 
-  late TopicReadIndex topicReadIndex = TopicReadIndex(
+  late TopicChatData topicChatData = TopicChatData(
       widget.topic, context.read<Clint>().messagesByTopicStream(widget.topic),
       preloadCount: preloadCount);
 
   late int initialScrollIndex =
-      topicReadIndex.readIndex - topicReadIndex.skipCount;
+      topicChatData.readIndex - topicChatData.skipCount;
 
   double currentPosition = 0;
 
-  late double _anchor = topicReadIndex.pageInitialData.isEmpty ? 0 : 1;
+  late double _anchor = 0;
+
+  final double _bottomHeight = 80;
+
+  late bool noMessages = topicChatData.pageInitialData.isEmpty;
+
+  double bodyHeight = 0.0;
+
+  late int openReadIndex = topicChatData.readIndex;
 
   @override
   void initState() {
@@ -54,29 +62,46 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
     _inputController.addListener(() {
       setState(() {});
     });
+
+    topicChatData.emptyMessage.addListener(() {
+      setState(() {
+        if (topicChatData.emptyMessage.value) {
+          _anchor = 1;
+        } else {
+          _anchor = 0;
+        }
+      });
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      final minScrollExtent = -messagesListController.position.minScrollExtent;
+
+      final appBarContext = _appBarKey.currentContext as StatefulElement?;
+
+      final bodyHeight = MediaQuery.of(context).size.height -
+          (appBarContext!.size!.height + _bottomHeight);
+
+      this.bodyHeight = bodyHeight - 0.01;
+      if (minScrollExtent < bodyHeight && minScrollExtent > 0) {
+        setState(() {
+          _anchor = (minScrollExtent / bodyHeight) + 0.0000000000000001;
+        });
+      } else {
+        setState(() {
+          _anchor = 1;
+        });
+      }
+
+      messagesListController.jumpTo(0);
+    });
   }
 
   @override
   void dispose() {
-    _listenable.removeListener(_onHeaderChange);
     _inputController.dispose();
     super.dispose();
   }
 
-  void _onHeaderChange() {
-    final state = _listenable.value;
-    if (state != null) {
-      final position = state.notifier.position;
-      _viewportDimension ??= position.viewportDimension;
-      final shrinkWrap = state.notifier.position.maxScrollExtent == 0;
-      if (_shrinkWrap != shrinkWrap &&
-          _viewportDimension == position.viewportDimension) {
-        setState(() {
-          _shrinkWrap = shrinkWrap;
-        });
-      }
-    }
-  }
 
   void _onSend() {
     if (_inputController.text.isEmpty) {
@@ -96,6 +121,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
       },
       child: Scaffold(
         appBar: AppBar(
+          key: _appBarKey,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
@@ -121,9 +147,9 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
             IconButton(
               icon: const Icon(Icons.delete_outline),
               onPressed: () {
-                topicReadIndex.removeAll();
+                topicChatData.removeAll();
                 setState(() {
-                  _anchor = 0;
+                  _anchor = 1;
                 });
               },
             )
@@ -146,15 +172,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
             Expanded(
               child: EasyRefresh(
                 clipBehavior: Clip.none,
-                onRefresh: () {
-                  topicReadIndex.loadMore();
-                },
-                // onLoad: () {},
-                footer: ListenerFooter(
-                  listenable: _listenable,
-                  triggerOffset: 0,
-                  clamping: false,
-                ),
+                onRefresh: topicChatData.loadMore,
                 header: BuilderHeader(
                     triggerOffset: 40,
                     clamping: false,
@@ -187,17 +205,13 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
                     }),
                 child: CustomScrollView(
                   controller: messagesListController,
-                  center: centerKey,
-                  shrinkWrap: _shrinkWrap,
-                  // 计算数据偏移量 当前n条数据偏移量大于 屏幕高度时 anchor为1
-                  // 当小于屏幕高度时 anchor为 组件高度/(屏幕高度-header高度+bottom高度)
-                  // 当高度不存在时 anchor为 0
+                  center: _centerKey,
                   anchor: _anchor,
                   slivers: [
                     _buildPageMessagesList(context),
                     SliverPadding(
                       padding: EdgeInsets.zero,
-                      key: centerKey,
+                      key: _centerKey,
                     ),
                     _buildMqttMessagesList(context),
                   ],
@@ -212,24 +226,64 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
   }
 
   Widget _buildPageMessagesList(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: topicChatData.emptyMessage,
+      builder: (BuildContext context, empty, Widget? child) {
+        if (topicChatData.pageInitialData.isEmpty) {
+          return _buildPageMessagesListEmpty(context, empty);
+        } else {
+          return _buildPageMessagesListNotEmpty(context);
+        }
+      },
+    );
+  }
+
+  Widget _buildPageMessagesListEmpty(BuildContext context, bool empty) {
+    return SliverToBoxAdapter(
+      key: const ValueKey("PageMessagesListEmpty"),
+      child: empty
+          ? SlideFadeTransition(
+              child: Container(
+                height: bodyHeight,
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Lottie.asset(
+                      "assets/lottie/empty_message.json",
+                      width: 300,
+                      height: 300,
+                      fit: BoxFit.cover,
+                    ),
+                    const SizedBox(
+                      height: 20,
+                    ),
+                    Text(
+                      "No messages...",
+                      style: Theme.of(context).textTheme.titleMedium,
+                    )
+                  ],
+                ),
+              ),
+            )
+          : Container(),
+    );
+  }
+
+  Widget _buildPageMessagesListNotEmpty(BuildContext context) {
     return StreamProvider<List<(int, ChatMessage)>>(
-      initialData: topicReadIndex.pageInitialData,
-      create: (BuildContext context) => topicReadIndex.pageMessageStream,
+      key: const ValueKey("PageMessagesListNotEmptyStreamProvider"),
+      initialData: topicChatData.pageInitialData,
+      create: (BuildContext context) => topicChatData.pageMessageStream,
       child: Consumer<List<(int, ChatMessage)>>(
         builder: (context, messages, child) {
-          return DetectLifecycleScrollTo(
-            build:
-                (BuildContext context, AppLifecycleState state, Widget? child) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {});
-              return child!;
+          return SliverList.builder(
+            itemCount: messages.length,
+            itemBuilder: (context, index) {
+              final message = messages[index];
+              return _buildMessageCard(context, message.$2, message.$1,
+                  storingData: true);
             },
-            child: SliverList.builder(
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final message = messages[index];
-                return _buildMessageCard(context, message.$2, message.$1);
-              },
-            ),
           );
         },
       ),
@@ -239,7 +293,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
   Widget _buildMqttMessagesList(BuildContext context) {
     return StreamProvider<List<(int, ChatMessage)>>(
       initialData: const [],
-      create: (BuildContext context) => topicReadIndex.mqttMessageStream,
+      create: (BuildContext context) => topicChatData.mqttMessageStream,
       child: Consumer<List<(int, ChatMessage)>>(
         builder: (context, messages, child) {
           return DetectLifecycleScrollTo(
@@ -262,107 +316,117 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
   }
 
   Widget _buildMessageCard(
-      BuildContext context, ChatMessage message, int hiveIndex) {
+      BuildContext context, ChatMessage message, int hiveIndex,
+      {bool storingData = false}) {
     ValueNotifier<bool> expandShow = ValueNotifier<bool>(false);
     return VisibilityDetector(
       key: ValueKey(hiveIndex),
       onVisibilityChanged: (VisibilityInfo info) {
-        topicReadIndex.changeReadIndex(hiveIndex);
+        if (info.visibleFraction == 0) {
+          return;
+        }
+        topicChatData.changeReadIndex(hiveIndex);
       },
-      child: Align(
-        alignment: message.mine ? Alignment.centerRight : Alignment.centerLeft,
-        child: GestureDetector(
-          onTap: () {
-            expandShow.value = !expandShow.value;
-            if (expandShow.value) {
-              Future.delayed(const Duration(milliseconds: 2000), () {
-                expandShow.value = false;
-              });
-            }
-          },
-          onLongPressStart: (details) {
-            expandShow.value = true;
-          },
-          onLongPressEnd: (details) {
-            Future.delayed(const Duration(milliseconds: 500), () {
-              expandShow.value = false;
-            });
-          },
-          child: Container(
-              decoration: BoxDecoration(
-                  color: message.mine
-                      ? Theme.of(context).colorScheme.secondaryContainer
-                      : Theme.of(context).colorScheme.onPrimary,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: Theme.of(context).colorScheme.outlineVariant)),
-              width: 270,
-              padding:
-                  const EdgeInsets.only(right: 10, left: 10, bottom: 2, top: 2),
-              margin:
-                  const EdgeInsets.only(bottom: 10, left: 8, right: 8, top: 8),
-              child: Column(
-                children: [
-                  ValueListenableBuilder(
-                      valueListenable: expandShow,
-                      builder:
-                          (BuildContext context, bool show, Widget? child) {
-                        return Row(
-                          children: [
-                            Text(
-                              show ? message.topic.topic : "",
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall!
-                                  .copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .outline),
-                            ),
-                          ],
-                        );
-                      }),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  Text(hiveIndex.toString()),
-                  MarkdownBody(data: message.content.raw),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  ValueListenableBuilder(
-                      valueListenable: expandShow,
-                      builder:
-                          (BuildContext context, bool show, Widget? child) {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text(
-                                show
-                                    ? DateTime.fromMillisecondsSinceEpoch(
-                                            message.timestamp)
-                                        .toCustomString()
-                                    : "",
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall!
-                                    .copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .outline)),
-                          ],
-                        );
-                      }),
-                ],
-              )),
-        ),
+      child: Column(
+        children: [
+          Align(
+            alignment:
+                message.mine ? Alignment.centerRight : Alignment.centerLeft,
+            child: GestureDetector(
+              onTap: () {
+                expandShow.value = !expandShow.value;
+                if (expandShow.value) {
+                  Future.delayed(const Duration(milliseconds: 2000), () {
+                    expandShow.value = false;
+                  });
+                }
+              },
+              onLongPressStart: (details) {
+                expandShow.value = true;
+              },
+              onLongPressEnd: (details) {
+                Future.delayed(const Duration(milliseconds: 500), () {
+                  expandShow.value = false;
+                });
+              },
+              child: Container(
+                  decoration: BoxDecoration(
+                      color: message.mine
+                          ? Theme.of(context).colorScheme.secondaryContainer
+                          : Theme.of(context).colorScheme.onPrimary,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: Theme.of(context).colorScheme.outlineVariant)),
+                  width: 270,
+                  padding: const EdgeInsets.only(
+                      right: 10, left: 10, bottom: 2, top: 2),
+                  margin: const EdgeInsets.only(
+                      bottom: 10, left: 8, right: 8, top: 8),
+                  child: Column(
+                    children: [
+                      ValueListenableBuilder(
+                          valueListenable: expandShow,
+                          builder:
+                              (BuildContext context, bool show, Widget? child) {
+                            return Row(
+                              children: [
+                                Text(
+                                  show ? message.topic.topic : "",
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall!
+                                      .copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .outline),
+                                ),
+                              ],
+                            );
+                          }),
+                      const SizedBox(
+                        height: 10,
+                      ),
+                      MarkdownBody(data: message.content.raw),
+                      const SizedBox(
+                        height: 10,
+                      ),
+                      ValueListenableBuilder(
+                          valueListenable: expandShow,
+                          builder:
+                              (BuildContext context, bool show, Widget? child) {
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Text(
+                                    show
+                                        ? DateTime.fromMillisecondsSinceEpoch(
+                                                message.timestamp)
+                                            .toCustomString()
+                                        : "",
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall!
+                                        .copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .outline)),
+                              ],
+                            );
+                          }),
+                    ],
+                  )),
+            ),
+          ),
+          if (hiveIndex == openReadIndex && storingData)
+            const DashedLineMessage(),
+        ],
       ),
     );
   }
 
   Widget _buildBottom(BuildContext context) {
     return Container(
-      height: 100,
+      height: _bottomHeight,
       color: Theme.of(context).colorScheme.onInverseSurface,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),

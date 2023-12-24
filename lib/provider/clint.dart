@@ -83,6 +83,7 @@ class Clint extends ChangeNotifier {
       _clintStatus = MqttConnectionState.connecting;
       notifyListeners();
       await mqttClint.connect();
+      _startForegroundService();
 
       final mqttSubscriptionOption = MqttSubscriptionOption();
 
@@ -106,6 +107,8 @@ class Clint extends ChangeNotifier {
         }
         _showNotification();
       });
+
+
     } on Exception catch (e) {
       debugPrint('tyme::client exception - $e');
       mqttClint.disconnect();
@@ -192,6 +195,25 @@ class Clint extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _startForegroundService() async {
+    const channelId = 'com.example.channelId';
+    const channelName = 'Foreground service channel';
+    const channelDescription = 'Foreground service channel description';
+
+    await _createNotificationChannel(
+      channelId,
+      channelName,
+      channelDescription,
+    );
+
+    const notificationId = 123;
+    await _createForegroundNotification(
+      notificationId,
+      channelId,
+      channelName,
+    );
+  }
+
   MqttConnectionState get clintStatus => _clintStatus;
 
   MqttConnectionStatus? get connectionStatus => mqttClint.connectionStatus;
@@ -221,4 +243,46 @@ Future<void> _showNotification() async {
   await flutterLocalNotificationsPlugin.show(
       id++, 'plain title', 'plain body', notificationDetails,
       payload: 'item x');
+}
+
+Future<void> _createNotificationChannel(
+    String channelId, String channelName, String channelDescription) async {
+  final androidNotificationChannel = AndroidNotificationChannel(
+    channelId,
+    channelName,
+    description: channelDescription,
+    importance: Importance.max,
+  );
+
+  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(
+        androidNotificationChannel,
+      );
+}
+
+Future<void> _createForegroundNotification(
+    int notificationId, String channelId, String channelName) async {
+  final androidChannelSpecifics = AndroidNotificationDetails(
+    channelId,
+    channelName,
+    channelDescription: 'Description',
+    importance: Importance.max,
+    priority: Priority.high,
+    ongoing: true,
+    autoCancel: false,
+  );
+
+  final platformChannelSpecifics =
+      NotificationDetails(android: androidChannelSpecifics);
+
+  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  await flutterLocalNotificationsPlugin.show(
+    notificationId,
+    'Tyme is running',
+    '正在运行...',
+    platformChannelSpecifics,
+  );
 }
