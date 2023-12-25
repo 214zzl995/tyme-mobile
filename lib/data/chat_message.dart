@@ -1,9 +1,12 @@
 import 'dart:convert';
 
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive/hive.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:nanoid/nanoid.dart';
 import 'package:tyme/data/clint_param.dart';
+
+import '../notification.dart';
 
 part 'chat_message.g.dart';
 
@@ -41,6 +44,20 @@ class ChatMessage {
   insert() async {
     final key = topic.header.hiveKey;
     await Hive.box<ChatMessage>(key).add(this);
+  }
+
+  void showNotification() async {
+    const AndroidNotificationDetails androidNotificationDetails =
+        AndroidNotificationDetails('your channel id', 'your channel name',
+            channelDescription: 'your channel description',
+            importance: Importance.max,
+            priority: Priority.high,
+            ticker: '🔔 New Messages');
+    const NotificationDetails notificationDetails =
+        NotificationDetails(android: androidNotificationDetails);
+    await flutterLocalNotificationsPlugin.show(notificationId++,
+        "$sender:${topic.header.topic}", content.raw, notificationDetails,
+        payload: 'item x');
   }
 }
 
@@ -86,7 +103,8 @@ extension ChatMqttMessage on MqttReceivedMessage<MqttMessage> {
     final message = ChatMessage();
     message.id = nanoid();
     message.topic.topic = topic!;
-    message.topic.header = clintParam.getTopicHeader(topic!,payload.header!.qos.index);
+    message.topic.header =
+        clintParam.getTopicHeader(topic!, payload.header!.qos.index);
 
     message.retain = payload.header!.retain;
     message.timestamp = DateTime.now().millisecondsSinceEpoch;

@@ -3,23 +3,17 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive/hive.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:mqtt5_client/mqtt5_server_client.dart';
-import 'package:rxdart/rxdart.dart';
 import 'package:tyme/data/chat_message.dart';
 import 'package:tyme/data/clint_param.dart';
 import 'package:tyme/data/clint_security_param.dart';
+import '../notification.dart';
 
-import '../main.dart';
-
-/// 是否出现修改只需要判断 Clint的 _clintParam 是否等于 Hive.box('tyme_config').listenable(keys: ["clint_param"]) equals 为false时需要重启
 class Clint extends ChangeNotifier {
-  final bool topicNotified = false;
-
   final mqttClint = MqttServerClient("", "");
 
   MqttConnectionState _clintStatus = MqttConnectionState.disconnected;
@@ -42,6 +36,9 @@ class Clint extends ChangeNotifier {
 
     mqttClint.onConnected = onConnected;
     mqttClint.onDisconnected = onDisconnected;
+    mqttClint.onAutoReconnect = onAutoReconnect;
+    mqttClint.onAutoReconnected = onAutoReconnected;
+    mqttClint.autoReconnect = true;
     mqttClint.onSubscribed = (topic) {
       debugPrint('tyme::client::::Subscription confirmed for topic $topic');
     };
@@ -74,7 +71,6 @@ class Clint extends ChangeNotifier {
     }
 
     mqttClint.connectionMessage = connMess;
-    mqttClint.keepAlivePeriod = 60;
     mqttClint.secure = _clintParam.securityParam != null;
   }
 
@@ -82,8 +78,8 @@ class Clint extends ChangeNotifier {
     try {
       _clintStatus = MqttConnectionState.connecting;
       notifyListeners();
+      _startForegroundServiceClint();
       await mqttClint.connect();
-      _startForegroundService();
 
       final mqttSubscriptionOption = MqttSubscriptionOption();
 
@@ -100,15 +96,17 @@ class Clint extends ChangeNotifier {
 
       mqttClint.subscribeWithSubscriptionList(mqttSubscriptionList);
 
-      mqttClint.updates.listen((List<MqttReceivedMessage<MqttMessage>> c) {
+      mqttClint.updates
+          .listen((List<MqttReceivedMessage<MqttMessage>> c) async {
         for (var message in c) {
           final chatMessage = message.toChatMessage(_clintParam);
-          chatMessage.insert();
+          await chatMessage.insert();
+          if (chatMessage.sender != _clintParam.clintId){
+            chatMessage.showNotification();
+          }
+
         }
-        _showNotification();
       });
-
-
     } on Exception catch (e) {
       debugPrint('tyme::client exception - $e');
       mqttClint.disconnect();
@@ -126,15 +124,10 @@ class Clint extends ChangeNotifier {
   }
 
   void onDisconnected() {
-    debugPrint('tyme::client::OnDisconnected 客户端回调 - 客户端断开连接');
-    if (mqttClint.connectionStatus!.disconnectionOrigin ==
-        MqttDisconnectionOrigin.solicited) {
-      if (topicNotified) {
-        debugPrint('tyme::client::OnDisconnected 回调是主动的，主题已被通知');
-      } else {
-        debugPrint('tyme::client::OnDisconnected 回调是主动的，主题尚未被通知');
-      }
-    }
+    String reasonString = mqttClint.connectionStatus!.reasonString ?? "";
+    _updateForegroundServiceDescription(
+        "🤨 Clint Disconnected \n $reasonString");
+
     _clintStatus = connectionStatus!.state;
     if (!disposeState) {
       notifyListeners();
@@ -145,8 +138,14 @@ class Clint extends ChangeNotifier {
   void onConnected() {
     _clintStatus = connectionStatus!.state;
     notifyListeners();
-    debugPrint("tyme::client::OnConnected 客户端回调 - 客户端连接成功当前状态: $_clintStatus");
+    _updateForegroundServiceDescription("😀 Clint Connected!");
   }
+
+  void onAutoReconnect() {
+    _updateForegroundServiceDescription("🙄 Clint AutoReconnect!");
+  }
+
+  void onAutoReconnected() {}
 
   /// Pong callback
   void pong() {
@@ -195,23 +194,9 @@ class Clint extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _startForegroundService() async {
-    const channelId = 'com.example.channelId';
-    const channelName = 'Foreground service channel';
-    const channelDescription = 'Foreground service channel description';
-
-    await _createNotificationChannel(
-      channelId,
-      channelName,
-      channelDescription,
-    );
-
-    const notificationId = 123;
-    await _createForegroundNotification(
-      notificationId,
-      channelId,
-      channelName,
-    );
+  Future<void> _startForegroundServiceClint() async {
+    await _createNotificationChannel();
+    await _startForegroundService();
   }
 
   MqttConnectionState get clintStatus => _clintStatus;
@@ -229,60 +214,59 @@ setCertificate(ClintSecurityParam clintSecurityParam) {
   return context;
 }
 
-int id = 0;
+const foregroundServiceChannelId = "com.leri.tyme";
+const foregroundServiceChannelName = "clint_foreground_service";
 
-Future<void> _showNotification() async {
-  const AndroidNotificationDetails androidNotificationDetails =
-      AndroidNotificationDetails('your channel id', 'your channel name',
-          channelDescription: 'your channel description',
-          importance: Importance.max,
-          priority: Priority.high,
-          ticker: 'ticker');
-  const NotificationDetails notificationDetails =
-      NotificationDetails(android: androidNotificationDetails);
-  await flutterLocalNotificationsPlugin.show(
-      id++, 'plain title', 'plain body', notificationDetails,
-      payload: 'item x');
-}
-
-Future<void> _createNotificationChannel(
-    String channelId, String channelName, String channelDescription) async {
-  final androidNotificationChannel = AndroidNotificationChannel(
-    channelId,
-    channelName,
-    description: channelDescription,
-    importance: Importance.max,
+Future<void> _createNotificationChannel() async {
+  const AndroidNotificationChannel androidNotificationChannel =
+      AndroidNotificationChannel(
+    foregroundServiceChannelId,
+    foregroundServiceChannelName,
+    description: '',
   );
-
-  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(
-        androidNotificationChannel,
-      );
+      ?.createNotificationChannel(androidNotificationChannel);
 }
 
-Future<void> _createForegroundNotification(
-    int notificationId, String channelId, String channelName) async {
-  final androidChannelSpecifics = AndroidNotificationDetails(
-    channelId,
-    channelName,
-    channelDescription: 'Description',
-    importance: Importance.max,
-    priority: Priority.high,
-    ongoing: true,
-    autoCancel: false,
-  );
+Future<void> _startForegroundService() async {
+  const AndroidNotificationDetails androidNotificationDetails =
+      AndroidNotificationDetails(
+          foregroundServiceChannelId, foregroundServiceChannelName,
+          channelDescription: '',
+          importance: Importance.max,
+          priority: Priority.high,
+          ticker: '');
 
-  final platformChannelSpecifics =
-      NotificationDetails(android: androidChannelSpecifics);
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.startForegroundService(1, 'Tyme is Running ✨', '😄 Start',
+          notificationDetails: androidNotificationDetails, payload: '');
+}
 
-  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  await flutterLocalNotificationsPlugin.show(
-    notificationId,
-    'Tyme is running',
-    '正在运行...',
-    platformChannelSpecifics,
-  );
+// ignore: unused_element
+Future<void> _updateForegroundServiceDescription(String description) async {
+  const AndroidNotificationDetails androidNotificationDetails =
+      AndroidNotificationDetails(
+          foregroundServiceChannelId, foregroundServiceChannelName,
+          channelDescription: '',
+          importance: Importance.max,
+          priority: Priority.high,
+          channelAction: AndroidNotificationChannelAction.update);
+
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.startForegroundService(1, 'Tyme is Running ✨', description,
+          notificationDetails: androidNotificationDetails, payload: '');
+}
+
+// ignore: unused_element
+Future<void> _stopForegroundService() async {
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.stopForegroundService();
 }
