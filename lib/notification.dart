@@ -70,7 +70,7 @@ Future<void> initNotifications() async {
   }*/
 
   const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('app_icon');
+      AndroidInitializationSettings('ic_launcher_foreground');
 
   final List<DarwinNotificationCategory> darwinNotificationCategories =
       <DarwinNotificationCategory>[
@@ -140,7 +140,7 @@ Future<void> initNotifications() async {
   final LinuxInitializationSettings initializationSettingsLinux =
       LinuxInitializationSettings(
     defaultActionName: 'Open notification',
-    defaultIcon: AssetsLinuxIcon('assets/icons/app_icon.png'),
+    defaultIcon: AssetsLinuxIcon('assets/icons/app_icon.svg'),
   );
 
   final InitializationSettings initializationSettings = InitializationSettings(
