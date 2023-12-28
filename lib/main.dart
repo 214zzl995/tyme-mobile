@@ -10,10 +10,9 @@ import 'package:tyme/data/chat_message.dart';
 import 'package:tyme/data/clint_param.dart';
 import 'package:tyme/data/clint_security_param.dart';
 import 'package:tyme/routers.dart';
+import 'package:tyme/theme.dart';
 
 import 'notification.dart';
-
-
 
 class ReceivedNotification {
   ReceivedNotification({
@@ -38,10 +37,8 @@ Future<void> main() async {
 
   if (Platform.isAndroid) {
     await FlutterDisplayMode.setHighRefreshRate();
-    SystemUiOverlayStyle style = const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-    );
-    SystemChrome.setSystemUIOverlayStyle(style);
+
+    await updateSystemOverlayStyleWithBrightness(Brightness.light);
   }
 
   runApp(const MyApp());
@@ -69,8 +66,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
-
 Future<void> _hiveInit() async {
   Hive.registerAdapter(ClintParamAdapter());
   Hive.registerAdapter(ClintSecurityParamAdapter());
@@ -90,3 +85,5 @@ Future<void> _hiveInit() async {
     }
   }
 }
+
+

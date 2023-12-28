@@ -129,6 +129,12 @@ class ClintParam {
     // 如果没有找到匹配的项，返回一个空字符串
     return SubscribeTopic.empty();
   }
+
+  void addSubscribeTopic(SubscribeTopic topic) {
+    List<SubscribeTopic> topics = List.from(subscribeTopics);
+    topics.add(topic);
+    subscribeTopics = topics;
+  }
 }
 
 @HiveType(typeId: 7)

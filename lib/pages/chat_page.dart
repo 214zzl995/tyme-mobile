@@ -302,7 +302,7 @@ class ChatPage extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               DropdownMenu<int>(
-                width: 270,
+                width: 300,
                 initialSelection: 1,
                 requestFocusOnTap: true,
                 label: const Text('Qos'),

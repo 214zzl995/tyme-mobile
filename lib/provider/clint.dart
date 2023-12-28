@@ -166,7 +166,7 @@ class Clint extends ChangeNotifier {
             subscribeTopic.topic, MqttQos.values[subscribeTopic.qos]);
       }
     }
-    clintParam.subscribeTopics.add(subscribeTopic);
+    clintParam.addSubscribeTopic(subscribeTopic);
 
     Hive.box('tyme_config').put("clint_param", clintParam);
     Hive.openBox(subscribeTopic.hiveKey);

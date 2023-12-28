@@ -32,56 +32,58 @@ class GuidePageState extends State<GuidePage>
   Widget build(BuildContext context) {
     WidgetsFlutterBinding.ensureInitialized();
     return Scaffold(
+        extendBody: false,
         body: GestureDetector(
-      onTap: () {
-        FocusScopeNode currentFocus = FocusScope.of(context);
+          onTap: () {
+            FocusScopeNode currentFocus = FocusScope.of(context);
 
-        if (!currentFocus.hasPrimaryFocus) {
-          currentFocus.unfocus();
-        }
-      },
-      child: Container(
-        color: Theme.of(context).colorScheme.background,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              height: 250,
-              padding: const EdgeInsets.only(top: 75, left: 20, right: 20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomLeft,
-                  colors: [
-                    Theme.of(context).colorScheme.primaryContainer,
-                    Theme.of(context).colorScheme.background
-                  ],
-                ),
-              ),
-              child: Text(
-                'Tyme',
-                style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer),
-              ),
-            ),
-            Expanded(
-                child: TabBarView(
-              controller: _tabController,
-              physics: const NeverScrollableScrollPhysics(),
+            if (!currentFocus.hasPrimaryFocus) {
+              currentFocus.unfocus();
+            }
+          },
+          child: Container(
+            color: Theme.of(context).colorScheme.background,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                GuideChatDemo(
-                  tabController: _tabController,
+                Container(
+                  height: 250,
+                  padding: const EdgeInsets.only(top: 75, left: 20, right: 20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomLeft,
+                      colors: [
+                        Theme.of(context).colorScheme.primaryContainer,
+                        Theme.of(context).colorScheme.background
+                      ],
+                    ),
+                  ),
+                  child: Text(
+                    'Tyme',
+                    style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                        color:
+                            Theme.of(context).colorScheme.onPrimaryContainer),
+                  ),
                 ),
-                const GuideSetting()
+                Expanded(
+                    child: TabBarView(
+                  controller: _tabController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    GuideChatDemo(
+                      tabController: _tabController,
+                    ),
+                    const GuideSetting()
+                  ],
+                ))
               ],
-            ))
-          ],
-        ),
-      ),
-    ));
+            ),
+          ),
+        ));
   }
 
   @override
