@@ -34,6 +34,7 @@ dependencies:
   easy_refresh: ^3.3.3+1
   flutter_spinkit: ^5.2.0
   sliver_tools: ^0.2.12
+  dynamic_color: ^1.6.3
 
 dev_dependencies:
   flutter_test:
