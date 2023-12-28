@@ -1,9 +1,11 @@
 flutter_native_splash:
   color: "#ffffff"
-  image: assets/splash/logo_lockup_flutter_vertical.png
+  image: assets/splash/splash.png
   color_dark: "#7f7f7f"
-  image_dark: assets/splash/logo_lockup_flutter_vertical_wht.png
+  image_dark: assets/splash/splash.png
+  web: false
+  android: false
   android_12:
-    image: assets/splash/android12splash.png
+    image: assets/splash/splash.png
     color: "#ffffff"
     icon_background_color: "#ffffff"
