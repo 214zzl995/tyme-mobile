@@ -12,6 +12,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import '../components/dashed_line_message.dart';
 import '../components/detect_lifecycle.dart';
+import '../components/system_overlay_style_with_brightness.dart';
 import '../data/chat_message.dart';
 import '../data/clint_param.dart';
 import '../data/topic_chat_data.dart';
@@ -47,7 +48,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
 
   late double _anchor = 0;
 
-  final double _bottomHeight = 80;
+  final double _bottomHeight = 80 ;
 
   late bool noMessages = topicChatData.pageInitialData.isEmpty;
 
@@ -79,7 +80,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
       final appBarContext = _appBarKey.currentContext as StatefulElement?;
 
       final bodyHeight = MediaQuery.of(context).size.height -
-          (appBarContext!.size!.height + _bottomHeight);
+          (appBarContext!.size!.height + _bottomHeight +  MediaQuery.of(context).padding.bottom);
 
       this.bodyHeight = bodyHeight - 0.01;
       if (minScrollExtent < bodyHeight && minScrollExtent > 0) {
@@ -102,7 +103,6 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
     super.dispose();
   }
 
-
   void _onSend() {
     if (_inputController.text.isEmpty) {
       return;
@@ -115,111 +115,114 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          key: _appBarKey,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              GoRouter.of(context).goNamed("Chat");
-            },
-          ),
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.mark_chat_unread_outlined),
-              const SizedBox(
-                width: 10,
-              ),
-              Text(
-                widget.topic.topic,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
+    return SystemOverlayStyleWithBrightness(
+      systemNavigationBarColor: Theme.of(context).colorScheme.onInverseSurface,
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            key: _appBarKey,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
               onPressed: () {
-                topicChatData.removeAll();
-                setState(() {
-                  _anchor = 1;
-                });
+                GoRouter.of(context).goNamed("Chat");
               },
-            )
-          ],
-          centerTitle: true,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(0.8), // 这里设置你想要的高度
-            child: Divider(
-              height: 0.8,
-              color: Theme.of(context)
-                  .colorScheme
-                  .outlineVariant
-                  .withOpacity(0.2), // 这里设置你想要的颜色
+            ),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.mark_chat_unread_outlined),
+                const SizedBox(
+                  width: 10,
+                ),
+                Text(
+                  widget.topic.topic,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () {
+                  topicChatData.removeAll();
+                  setState(() {
+                    _anchor = 1;
+                  });
+                },
+              )
+            ],
+            centerTitle: true,
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(0.8), // 这里设置你想要的高度
+              child: Divider(
+                height: 0.8,
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withOpacity(0.2), // 这里设置你想要的颜色
+              ),
             ),
           ),
-        ),
-        resizeToAvoidBottomInset: true,
-        body: Column(
-          children: [
-            Expanded(
-              child: EasyRefresh(
-                clipBehavior: Clip.none,
-                onRefresh: topicChatData.loadMore,
-                header: BuilderHeader(
-                    triggerOffset: 40,
-                    clamping: false,
-                    position: IndicatorPosition.above,
-                    infiniteOffset: null,
-                    processedDuration: Duration.zero,
-                    builder: (context, state) {
-                      return Stack(
-                        children: [
-                          SizedBox(
-                            height: state.offset,
-                            width: double.infinity,
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            child: Container(
-                              alignment: Alignment.center,
+          resizeToAvoidBottomInset: true,
+          body: Column(
+            children: [
+              Expanded(
+                child: EasyRefresh(
+                  clipBehavior: Clip.none,
+                  onRefresh: topicChatData.loadMore,
+                  header: BuilderHeader(
+                      triggerOffset: 40,
+                      clamping: false,
+                      position: IndicatorPosition.above,
+                      infiniteOffset: null,
+                      processedDuration: Duration.zero,
+                      builder: (context, state) {
+                        return Stack(
+                          children: [
+                            SizedBox(
+                              height: state.offset,
                               width: double.infinity,
-                              height: 40,
-                              child: SpinKitCircle(
-                                size: 24,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
                             ),
-                          )
-                        ],
-                      );
-                    }),
-                child: CustomScrollView(
-                  controller: messagesListController,
-                  center: _centerKey,
-                  anchor: _anchor,
-                  slivers: [
-                    _buildPageMessagesList(context),
-                    SliverPadding(
-                      padding: EdgeInsets.zero,
-                      key: _centerKey,
-                    ),
-                    _buildMqttMessagesList(context),
-                  ],
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                alignment: Alignment.center,
+                                width: double.infinity,
+                                height: 40,
+                                child: SpinKitCircle(
+                                  size: 24,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                            )
+                          ],
+                        );
+                      }),
+                  child: CustomScrollView(
+                    controller: messagesListController,
+                    center: _centerKey,
+                    anchor: _anchor,
+                    slivers: [
+                      _buildPageMessagesList(context),
+                      SliverPadding(
+                        padding: EdgeInsets.zero,
+                        key: _centerKey,
+                      ),
+                      _buildMqttMessagesList(context),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            _buildBottom(context)
-          ],
+              _buildBottom(context)
+            ],
+          ),
         ),
       ),
     );
@@ -426,10 +429,14 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
 
   Widget _buildBottom(BuildContext context) {
     return Container(
-      height: _bottomHeight,
+      height: _bottomHeight + MediaQuery.of(context).padding.bottom,
       color: Theme.of(context).colorScheme.onInverseSurface,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        padding: EdgeInsets.only(
+            top: 16,
+            bottom: 16 + MediaQuery.of(context).padding.bottom,
+            left: 8,
+            right: 8),
         child: Row(
           children: [
             IconButton(

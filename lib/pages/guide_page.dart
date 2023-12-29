@@ -9,6 +9,7 @@ import 'package:hive/hive.dart';
 import 'package:tyme/data/clint_security_param.dart';
 
 import '../components/slide_fade_transition.dart';
+import '../components/system_overlay_style_with_brightness.dart';
 import '../data/clint_param.dart';
 
 class GuidePage extends StatefulWidget {
@@ -31,59 +32,63 @@ class GuidePageState extends State<GuidePage>
   @override
   Widget build(BuildContext context) {
     WidgetsFlutterBinding.ensureInitialized();
-    return Scaffold(
-        extendBody: false,
-        body: GestureDetector(
-          onTap: () {
-            FocusScopeNode currentFocus = FocusScope.of(context);
+    return SystemOverlayStyleWithBrightness(
+      systemNavigationBarColor: Theme.of(context).colorScheme.background,
+      child: Scaffold(
+          extendBody: false,
+          body: GestureDetector(
+            onTap: () {
+              FocusScopeNode currentFocus = FocusScope.of(context);
 
-            if (!currentFocus.hasPrimaryFocus) {
-              currentFocus.unfocus();
-            }
-          },
-          child: Container(
-            color: Theme.of(context).colorScheme.background,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  height: 250,
-                  padding: const EdgeInsets.only(top: 75, left: 20, right: 20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomLeft,
-                      colors: [
-                        Theme.of(context).colorScheme.primaryContainer,
-                        Theme.of(context).colorScheme.background
-                      ],
+              if (!currentFocus.hasPrimaryFocus) {
+                currentFocus.unfocus();
+              }
+            },
+            child: Container(
+              color: Theme.of(context).colorScheme.background,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    height: 250,
+                    padding:
+                        const EdgeInsets.only(top: 75, left: 20, right: 20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomLeft,
+                        colors: [
+                          Theme.of(context).colorScheme.primaryContainer,
+                          Theme.of(context).colorScheme.background
+                        ],
+                      ),
+                    ),
+                    child: Text(
+                      'Tyme',
+                      style: TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.bold,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer),
                     ),
                   ),
-                  child: Text(
-                    'Tyme',
-                    style: TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.bold,
-                        color:
-                            Theme.of(context).colorScheme.onPrimaryContainer),
-                  ),
-                ),
-                Expanded(
-                    child: TabBarView(
-                  controller: _tabController,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    GuideChatDemo(
-                      tabController: _tabController,
-                    ),
-                    const GuideSetting()
-                  ],
-                ))
-              ],
+                  Expanded(
+                      child: TabBarView(
+                    controller: _tabController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      GuideChatDemo(
+                        tabController: _tabController,
+                      ),
+                      const GuideSetting()
+                    ],
+                  ))
+                ],
+              ),
             ),
-          ),
-        ));
+          )),
+    );
   }
 
   @override
@@ -120,7 +125,10 @@ class GuideChatDemo extends StatelessWidget {
   Widget _buildGetStartButton(BuildContext context) {
     return Expanded(
       child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              bottom: 20 + MediaQuery.of(context).padding.bottom),
           child: Align(
               alignment: Alignment.bottomRight,
               child: SlideFadeTransition(

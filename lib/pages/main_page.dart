@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../components/system_overlay_style_with_brightness.dart';
 import '../routers.dart';
 import 'package:collection/collection.dart';
 
@@ -18,26 +19,33 @@ class MainPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: AnimatedBranchContainer(
-        currentIndex: navigationShell.currentIndex,
-        children: children,
-      ),
-      bottomNavigationBar: NavigationBar(
-        onDestinationSelected: (index) {
-          GoRouter.of(context).go(TymeRouteConfiguration.navPaths[index].path);
-        },
-        selectedIndex: getSelectedIndex(context),
-        destinations: [
-          ...List.of(TymeRouteConfiguration.navPaths).map((path) {
-            return NavigationDestination(
-              icon: path.icon ?? const Icon(Icons.waving_hand),
-              label: path.name,
-            );
-          })
-        ],
-      ),
-    );
+    return SystemOverlayStyleWithBrightness(
+        systemNavigationBarColor: ElevationOverlay.colorWithOverlay(
+            Theme.of(context).colorScheme.surface,
+            Theme.of(context).colorScheme.surfaceTint,
+            3),
+        child: Scaffold(
+          body: AnimatedBranchContainer(
+            currentIndex: navigationShell.currentIndex,
+            children: children,
+          ),
+          bottomNavigationBar: NavigationBar(
+            elevation: 3,
+            onDestinationSelected: (index) {
+              GoRouter.of(context)
+                  .go(TymeRouteConfiguration.navPaths[index].path);
+            },
+            selectedIndex: getSelectedIndex(context),
+            destinations: [
+              ...List.of(TymeRouteConfiguration.navPaths).map((path) {
+                return NavigationDestination(
+                  icon: path.icon ?? const Icon(Icons.waving_hand),
+                  label: path.name,
+                );
+              })
+            ],
+          ),
+        ));
   }
 
   int getSelectedIndex(BuildContext context) {

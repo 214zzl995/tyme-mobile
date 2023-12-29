@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:tyme/data/clint_param.dart';
 
+import '../components/system_overlay_style_with_brightness.dart';
 import '../data/clint_security_param.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -25,21 +26,13 @@ class SettingsPage extends StatelessWidget {
               valueListenable:
                   Hive.box('tyme_config').listenable(keys: ["clint_param"]),
               builder: (context, tymeConfig, widget) {
+                final clintParam = tymeConfig.get("clint_param") as ClintParam;
                 return SliverList.list(children: [
                   _buildSettingGroupHeader(context, "Clint"),
-                  _buildSettingItem(
-                      context,
-                      "Broker",
-                      tymeConfig.get("clint_param").broker,
+                  _buildSettingItem(context, "Broker", clintParam.broker,
                       Icons.cloud_outlined, () {
-                    _buildEditDialog(
-                        context,
-                        "Broker",
-                        tymeConfig.get("clint_param").broker,
+                    _buildEditDialog(context, "Broker", clintParam.broker,
                         Icons.cloud_outlined, (value) async {
-                      final ClintParam clintParam =
-                          tymeConfig.get("clint_param");
-
                       if (value != clintParam.broker) {
                         final editClintParam =
                             clintParam.copyWith(broker: value);
@@ -48,18 +41,13 @@ class SettingsPage extends StatelessWidget {
                       }
                     });
                   }),
-                  _buildSettingItem(
-                      context,
-                      "Port",
-                      tymeConfig.get("clint_param").port.toString(),
+                  _buildSettingItem(context, "Port", clintParam.port.toString(),
                       Icons.link_outlined, () {
                     _buildEditDialog(
                         context,
                         "Port",
-                        tymeConfig.get("clint_param").port.toString(),
+                        clintParam.port.toString(),
                         Icons.link_outlined, (value) async {
-                      final ClintParam clintParam =
-                          tymeConfig.get("clint_param");
                       if (value != clintParam.port) {
                         final editClintParam = clintParam.copyWith(port: value);
 
@@ -68,19 +56,10 @@ class SettingsPage extends StatelessWidget {
                       }
                     }, number: true);
                   }),
-                  _buildSettingItem(
-                      context,
-                      "Clint ID",
-                      tymeConfig.get("clint_param").clintId,
+                  _buildSettingItem(context, "Clint ID", clintParam.clintId,
                       Icons.usb_outlined, () {
-                    _buildEditDialog(
-                        context,
-                        "Clint ID",
-                        tymeConfig.get("clint_param").clintId,
+                    _buildEditDialog(context, "Clint ID", clintParam.clintId,
                         Icons.usb_outlined, (value) async {
-                      final ClintParam clintParam =
-                          tymeConfig.get("clint_param");
-
                       if (value != clintParam.clintId) {
                         final editClintParam =
                             clintParam.copyWith(clintId: value);
@@ -90,19 +69,10 @@ class SettingsPage extends StatelessWidget {
                       }
                     });
                   }),
-                  _buildSettingItem(
-                      context,
-                      "Username",
-                      tymeConfig.get("clint_param").username,
+                  _buildSettingItem(context, "Username", clintParam.username,
                       Icons.account_circle_outlined, () {
-                    _buildEditDialog(
-                        context,
-                        "Username",
-                        tymeConfig.get("clint_param").username,
+                    _buildEditDialog(context, "Username", clintParam.username,
                         Icons.account_circle_outlined, (value) async {
-                      final ClintParam clintParam =
-                          tymeConfig.get("clint_param");
-
                       if (value != clintParam.username) {
                         final editClintParam =
                             clintParam.copyWith(username: value);
@@ -112,19 +82,10 @@ class SettingsPage extends StatelessWidget {
                       }
                     }, canNull: true);
                   }),
-                  _buildSettingItem(
-                      context,
-                      "Password",
-                      tymeConfig.get("clint_param").password.toString().hide(),
-                      Icons.password_outlined, () {
-                    _buildEditDialog(
-                        context,
-                        "Password",
-                        tymeConfig.get("clint_param").password,
+                  _buildSettingItem(context, "Password",
+                      clintParam.password?.hide(), Icons.password_outlined, () {
+                    _buildEditDialog(context, "Password", clintParam.password,
                         Icons.password_outlined, (value) async {
-                      final ClintParam clintParam =
-                          tymeConfig.get("clint_param");
-
                       if (value != clintParam.password) {
                         final editClintParam =
                             clintParam.copyWith(password: value);
@@ -137,7 +98,7 @@ class SettingsPage extends StatelessWidget {
                   _buildSettingItem(
                       context,
                       "Certificate",
-                      tymeConfig.get("clint_param").securityParam.filename,
+                      clintParam.securityParam?.filename,
                       Icons.security_outlined, () {
                     _filePicker(tymeConfig.get("clint_param")).then((_) {});
                   }),
@@ -185,10 +146,11 @@ class SettingsPage extends StatelessWidget {
                   title,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                Text(
-                  subTitle ?? "Not Set",
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                if (subTitle != null)
+                  Text(
+                    subTitle,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
               ],
             ),
           ],
@@ -197,91 +159,99 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  _buildEditDialog(BuildContext context, String title, String defaultValue,
+  _buildEditDialog(BuildContext context, String title, String? defaultValue,
       IconData icon, AsyncValueSetter confirmCallback,
       {bool number = false, bool password = false, bool canNull = false}) {
     String editText = "";
+    final systemOverlayStyle = Color.alphaBlend(
+        Colors.black54,
+        ElevationOverlay.colorWithOverlay(Theme.of(context).colorScheme.surface,
+            Theme.of(context).colorScheme.surfaceTint, 3));
 
     showDialog<String>(
       context: context,
       builder: (BuildContext context) => Dialog(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Row(
-                children: [
-                  Icon(icon),
-                  const SizedBox(width: 20),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 30),
-              TextField(
-                controller: TextEditingController(text: defaultValue),
-                obscureText: password,
-                cursorOpacityAnimates: true,
-                textInputAction: TextInputAction.newline,
-                autofocus: true,
-                maxLines: password ? 1 : null,
-                keyboardType:
-                    number ? TextInputType.number : TextInputType.multiline,
-                inputFormatters: number
-                    ? [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
-                        LengthLimitingTextInputFormatter(5),
-                      ]
-                    : [],
-                decoration: InputDecoration(
-                  border: const OutlineInputBorder(),
-                  labelText: title,
+        child: SystemOverlayStyleWithBrightness(
+          sized: false,
+          systemNavigationBarColor: systemOverlayStyle,
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Row(
+                  children: [
+                    Icon(icon),
+                    const SizedBox(width: 20),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                onChanged: (String value) {
-                  editText = value;
-                },
-              ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: Text('Close',
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.error)),
+                const SizedBox(height: 30),
+                TextField(
+                  controller: TextEditingController(text: defaultValue),
+                  obscureText: password,
+                  cursorOpacityAnimates: true,
+                  textInputAction: TextInputAction.newline,
+                  autofocus: true,
+                  maxLines: password ? 1 : null,
+                  keyboardType:
+                      number ? TextInputType.number : TextInputType.multiline,
+                  inputFormatters: number
+                      ? [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
+                          LengthLimitingTextInputFormatter(5),
+                        ]
+                      : [],
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
+                    labelText: title,
                   ),
-                  TextButton(
-                    onPressed: () {
-                      dynamic confirmValue;
-                      if (number) {
-                        confirmValue =
-                            int.parse(editText == "" ? "0" : editText);
-                      } else {
-                        confirmValue = editText;
-                      }
-                      if (canNull || (!canNull && editText != "")) {
-                        confirmCallback(confirmValue);
-                      }
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Confirm'),
-                  ),
-                ],
-              )
-            ],
+                  onChanged: (String value) {
+                    editText = value;
+                  },
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      child: Text('Close',
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.error)),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        dynamic confirmValue;
+                        if (number) {
+                          confirmValue =
+                              int.parse(editText == "" ? "0" : editText);
+                        } else {
+                          confirmValue = editText;
+                        }
+                        if (canNull || (!canNull && editText != "")) {
+                          confirmCallback(confirmValue);
+                        }
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Confirm'),
+                    ),
+                  ],
+                )
+              ],
+            ),
           ),
         ),
       ),
