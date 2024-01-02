@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
@@ -61,18 +62,30 @@ class MyApp extends StatelessWidget {
         child: ValueListenableBuilder(
           valueListenable: Hive.box('tyme_config').listenable(keys: []),
           builder: (context, box, widget) {
-            return MaterialApp.router(
-              supportedLocales: const [Locale("zh", "CN"), Locale("en", "US")],
-              localizationsDelegates: const [
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
-              themeMode: Theme.of(context).brightness == Brightness.dark
-                  ? ThemeMode.dark
-                  : ThemeMode.light,
-              routerConfig:
-                  TymeRouteConfiguration.routers(box.get("client_param")),
+            return DynamicColorBuilder(
+              builder: (lightColorScheme, darkColorScheme) {
+                return MaterialApp.router(
+                  supportedLocales: const [
+                    Locale("zh", "CN"),
+                    Locale("en", "US")
+                  ],
+                  localizationsDelegates: const [
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                  ],
+                  theme: ThemeData(colorScheme: lightColorScheme),
+                  darkTheme: ThemeData(
+                    colorScheme: darkColorScheme,
+                    useMaterial3: true,
+                  ),
+                  themeMode: Theme.of(context).brightness == Brightness.dark
+                      ? ThemeMode.dark
+                      : ThemeMode.light,
+                  routerConfig:
+                      TymeRouteConfiguration.routers(box.get("client_param")),
+                );
+              },
             );
           },
         ));

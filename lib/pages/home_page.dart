@@ -118,18 +118,12 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildConnected(BuildContext context) {
-    return SliverList(
-      delegate: SliverChildListDelegate(
-        <Widget>[
-          _buildServerCard(context),
-          _buildServerCard(context),
-          _buildServerCard(context),
-          _buildServerCard(context),
-          _buildServerCard(context),
-          _buildServerCard(context),
-        ],
-      ),
-    );
+    return const SliverFillRemaining(
+        hasScrollBody: false,
+        key: ValueKey('connected'),
+        child: Center(
+          child: Text('Connected'),
+        ));
   }
 
   Widget _buildStatus(BuildContext context, MqttConnectionState status) {

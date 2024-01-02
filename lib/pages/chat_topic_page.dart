@@ -10,7 +10,6 @@ import 'package:provider/provider.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../components/dashed_line_message.dart';
-import '../components/detect_lifecycle.dart';
 import '../components/system_overlay_style_with_brightness.dart';
 import '../data/chat_message.dart';
 import '../data/client_param.dart';
@@ -46,7 +45,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
 
   double bodyHeight = 0.0;
 
-  late int openReadIndex = topicChatData.readIndex;
+  late int openReadIndex = topicChatData.readIndexValue;
 
   @override
   void initState() {
@@ -138,7 +137,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
                 onPressed: () {
                   topicChatData.removeAll();
                   setState(() {
-                    _anchor = 1;
+                    _anchor = 0;
                   });
                 },
               )
@@ -255,7 +254,6 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
 
   Widget _buildPageMessagesList(BuildContext context) {
     return StreamProvider<List<(int, ChatMessage)>>.value(
-      key: const ValueKey("PageMessagesListNotEmptyStreamProvider"),
       initialData: topicChatData.pageInitialData,
       value: topicChatData.pageMessageStream,
       child: Consumer<List<(int, ChatMessage)>>(
@@ -279,19 +277,13 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
       value: topicChatData.mqttMessageStream,
       child: Consumer<List<(int, ChatMessage)>>(
         builder: (context, messages, child) {
-          return DetectLifecycleScrollTo(
-            build:
-                (BuildContext context, AppLifecycleState state, Widget? child) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {});
-              return child!;
+          debugPrint("mqtt_message_stream:${messages.length}");
+          return SliverList.builder(
+            itemCount: messages.length,
+            itemBuilder: (context, index) {
+              final message = messages[index];
+              return _buildMessageCard(context, message.$2, message.$1);
             },
-            child: SliverList.builder(
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final message = messages[index];
-                return _buildMessageCard(context, message.$2, message.$1);
-              },
-            ),
           );
         },
       ),

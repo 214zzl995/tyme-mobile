@@ -16,22 +16,16 @@ class TopicChatData {
   final SubscribeTopic topic;
   int preloadCount;
 
-  late int readIndex;
+  final ValueNotifier<int> _readIndex = ValueNotifier(-1);
+  late final ValueNotifier<bool> _noMore =
+      ValueNotifier(_pageInitialData.isEmpty || _pageInitialData.first.$1 == 0);
 
   late int moreMessageNumber;
 
   late int skipCount;
   bool _remove = false;
 
-  final StreamController<List<(int, ChatMessage)>>
-      _mqttMessageStreamController =
-      StreamController<List<(int, ChatMessage)>>();
-
   final Stream<List<(int, ChatMessage)>> _mqttMessageStream;
-
-  final StreamController<List<(int, ChatMessage)>>
-      _pageMessageStreamController =
-      StreamController<List<(int, ChatMessage)>>();
 
   late List<(int, ChatMessage)> _pageInitialData =
       _initialData.reversed.toList();
@@ -42,20 +36,16 @@ class TopicChatData {
   late final ValueNotifier _emptyMessage =
       ValueNotifier(_pageInitialData.isEmpty);
 
-  ValueNotifier get emptyMessage => _emptyMessage;
+  late final StreamController<List<(int, ChatMessage)>>
+      _mqttMessageStreamController = BehaviorSubject();
 
-  List<(int, ChatMessage)> get pageInitialData => _pageInitialData;
+  late final StreamController<List<(int, ChatMessage)>>
+      _pageMessageStreamController = BehaviorSubject.seeded(_pageInitialData);
 
-  late StreamSubscription _emptyMqttMessageStreamSubscription;
-
-  late Stream<List<(int, ChatMessage)>> mqttMessageStream = _mqttMessageStream
-      .mergeWith([_mqttMessageStreamController.stream]).scan(
-          (accumulated, value, index) {
+  late Stream<List<(int, ChatMessage)>> mqttMessageStream =
+      _mqttMessageStreamController.stream.scan((accumulated, value, index) {
     if (value.isEmpty) {
       return [];
-    }
-    if (emptyMessage.value) {
-      emptyMessage.value = false;
     }
 
     final accumulatedMaxIndex =
@@ -68,45 +58,41 @@ class TopicChatData {
   }, []);
 
   late Stream<List<(int, ChatMessage)>> pageMessageStream =
-      _pageMessageStreamController.stream.startWith(_pageInitialData).scan(
-          (accumulated, value, index) {
-    if (accumulated.isNotEmpty &&
-        accumulated.last.$1 == 0 &&
-        value.isEmpty &&
-        _remove) {
+      _pageMessageStreamController.stream.scan((accumulated, value, index) {
+    if (_remove) {
       _remove = false;
       return [];
     }
     return [...accumulated, ...value];
   }, []);
 
+  late StreamSubscription _emptyMqttMessageStreamSubscription;
+
   TopicChatData(this.topic, this._mqttMessageStream,
       {this.preloadCount = 20, this.moreMessageNumber = 30}) {
-    readIndex = Hive.box(readBox).get(key, defaultValue: -1);
+    _readIndex.value = Hive.box(readBox).get(key, defaultValue: -1);
     final length = Hive.box<ChatMessage>(key).length;
 
     final normalBegin = length > preloadCount ? length - preloadCount : 0;
 
-    skipCount = readIndex - normalBegin > -10
+    skipCount = _readIndex.value - normalBegin > -10
         ? normalBegin
-        : readIndex > 10
-            ? readIndex - 10
+        : _readIndex.value > 10
+            ? _readIndex.value - 10
             : 0;
 
     if (pageInitialData.isEmpty) {
       _addEmptyMqttMessageStreamSubscription();
     }
 
-    Hive.box(readBox).listenable(keys: [key]).addListener(() {
-      final readIndex = Hive.box(readBox).get(key);
-      debugPrint("read_index changed,index:$readIndex");
-      this.readIndex = readIndex;
-    });
+    _mqttMessageStream
+        .where((event) => event.isNotEmpty)
+        .listen(_mqttMessageStreamController.add);
   }
 
   void changeReadIndex(int index) {
-    if (index > readIndex) {
-      readIndex = index;
+    if (index > _readIndex.value) {
+      _readIndex.value = index;
       Hive.box(readBox).put(key, index);
     }
   }
@@ -135,6 +121,7 @@ class TopicChatData {
     int endKey = skipCount - 1 < 0 ? 0 : skipCount - 1;
 
     if (startKey == 0 && endKey == 0) {
+      _noMore.value = true;
       return [];
     }
 
@@ -154,17 +141,25 @@ class TopicChatData {
   }
 
   void removeAll() async {
-    await Hive.box<ChatMessage>(key).clear();
-    await Hive.box(readBox).put(key, -1);
-    skipCount = 0;
-    readIndex = 0;
-    _remove = true;
-    _pageMessageStreamController.add([]);
-    _mqttMessageStreamController.add([]);
-    _pageInitialData = [];
-    _addEmptyMqttMessageStreamSubscription();
     if (!emptyMessage.value) {
       emptyMessage.value = true;
     }
+    await Hive.box<ChatMessage>(key).clear();
+    await Hive.box(readBox).put(key, -1);
+    skipCount = 0;
+    _readIndex.value = 0;
+    _remove = true;
+    _pageInitialData = [];
+    _pageMessageStreamController.add([]);
+    _mqttMessageStreamController.add([]);
+    _addEmptyMqttMessageStreamSubscription();
   }
+
+  ValueNotifier get emptyMessage => _emptyMessage;
+
+  List<(int, ChatMessage)> get pageInitialData => _pageInitialData;
+
+  ValueNotifier<int> get readIndex => _readIndex;
+
+  int get readIndexValue => _readIndex.value;
 }
