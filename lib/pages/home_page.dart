@@ -11,23 +11,18 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: CustomScrollView(
-          key: const PageStorageKey("home_page_scroll_view"),
-          controller: ScrollController(),
-          slivers: <Widget>[
-            const SliverAppBar.large(
-              leading: Icon(Icons.home),
-              title: Text('Home'),
-            ),
-            _buildBody(context)
-          ],
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            context.read<Client>().restart();
-          },
-          child: const Icon(Icons.refresh),
-        ));
+      body: CustomScrollView(
+        key: const PageStorageKey("home_page_scroll_view"),
+        controller: ScrollController(),
+        slivers: <Widget>[
+          const SliverAppBar.large(
+            leading: Icon(Icons.home),
+            title: Text('Home'),
+          ),
+          _buildBody(context)
+        ],
+      ),
+    );
   }
 
   Widget _buildBody(BuildContext context) {
@@ -42,59 +37,73 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildDisconnected(BuildContext context) {
-    return const SliverFillRemaining(
-      hasScrollBody: false,
-      key: ValueKey('disconnected'),
-      child: Center(
-        child: Text('Disconnected'),
-      ),
-    );
-  }
-
-  Widget _buildDisconnecting(BuildContext context) {
-    return const SliverFillRemaining(
+    return SliverFillRemaining(
         hasScrollBody: false,
-        key: ValueKey('disconnecting'),
-        child: Center(
-          child: Text('Disconnecting'),
+        key: const ValueKey('disconnected'),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 120.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              Lottie.asset(
+                'assets/lottie/client_disconnect.json',
+                width: 250,
+                height: 250,
+                fit: BoxFit.cover,
+                repeat: true,
+              ),
+              Text(
+                'Disconnected',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              Text(
+                'Please connect to the server',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(
+                height: 30,
+              ),
+              ElevatedButton(
+                onPressed: () {},
+                child: const Text('Connect'),
+              )
+            ],
+          ),
         ));
   }
 
-  Widget _buildConnecting(BuildContext context) {
+  Widget _buildRunning(BuildContext context, [disconnecting = false]) {
     return SliverFillRemaining(
       hasScrollBody: false,
       key: const ValueKey('connecting'),
-      child: Container(
-        padding: const EdgeInsets.only(bottom: 100),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-                height: 300,
-                width: 300,
-                child: Lottie.asset(
-                  'assets/lottie/chat_connecting.json',
-                  fit: BoxFit.cover,
-                  repeat: true,
-                )),
-            Text(
-              'Connecting',
-              style: Theme.of(context).textTheme.bodySmall,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            height: 5,
+            width: 250,
+            child: LinearProgressIndicator(
+              borderRadius: const BorderRadius.all(Radius.circular(5)),
+              backgroundColor: disconnecting
+                  ? Theme.of(context).colorScheme.errorContainer
+                  : Theme.of(context).colorScheme.primaryContainer,
+              color: disconnecting
+                  ? Theme.of(context).colorScheme.error.withOpacity(0.5)
+                  : Theme.of(context).colorScheme.primary.withOpacity(0.5),
             ),
-            const SizedBox(
-              height: 10,
-            ),
-            const SizedBox(
-              height: 5,
-              width: 200,
-              child: LinearProgressIndicator(
-                borderRadius: BorderRadius.all(Radius.circular(5)),
-              ),
-            ),
-          ],
-          //条形进度条
-        ),
+          ),
+          const SizedBox(
+            height: 30,
+          ),
+          Text(
+            disconnecting ? 'DisConnecting...' : 'Connecting...',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+        ],
+        //条形进度条
       ),
     );
   }
@@ -128,9 +137,9 @@ class HomePage extends StatelessWidget {
       case MqttConnectionState.disconnected:
         return _buildDisconnected(context);
       case MqttConnectionState.disconnecting:
-        return _buildDisconnecting(context);
+        return _buildRunning(context, true);
       case MqttConnectionState.connecting:
-        return _buildConnecting(context);
+        return _buildRunning(context);
       case MqttConnectionState.connected:
         return _buildConnected(context);
       case MqttConnectionState.faulted:

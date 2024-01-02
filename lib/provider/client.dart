@@ -141,10 +141,7 @@ class Client with ChangeNotifier {
 
   /// The successful connect callback
   void onConnected() {
-    Future.delayed(const Duration(milliseconds: 2000), () {
-      _updateClientStatus();
-    });
-
+    _updateClientStatus();
     _updateForegroundServiceDescription("😀 Client Connected!");
   }
 

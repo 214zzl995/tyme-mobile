@@ -7,7 +7,6 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
-import 'package:tyme/components/slide_fade_transition.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../components/dashed_line_message.dart';
@@ -41,16 +40,9 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
       widget.topic, context.read<Client>().messagesByTopicStream(widget.topic),
       preloadCount: preloadCount);
 
-  late int initialScrollIndex =
-      topicChatData.readIndex - topicChatData.skipCount;
-
-  double currentPosition = 0;
-
   late double _anchor = 0;
 
-  final double _bottomHeight = 80 ;
-
-  late bool noMessages = topicChatData.pageInitialData.isEmpty;
+  final double _bottomHeight = 80;
 
   double bodyHeight = 0.0;
 
@@ -64,37 +56,32 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
       setState(() {});
     });
 
-    topicChatData.emptyMessage.addListener(() {
-      setState(() {
-        if (topicChatData.emptyMessage.value) {
-          _anchor = 1;
+    if (topicChatData.pageInitialData.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+        final minScrollExtent =
+            -messagesListController.position.minScrollExtent;
+
+        final appBarContext = _appBarKey.currentContext as StatefulElement?;
+
+        final bodyHeight = MediaQuery.of(context).size.height -
+            (appBarContext!.size!.height +
+                _bottomHeight +
+                MediaQuery.of(context).padding.bottom);
+
+        this.bodyHeight = bodyHeight - 0.01;
+        if (minScrollExtent < bodyHeight && minScrollExtent > 0) {
+          setState(() {
+            _anchor = (minScrollExtent / bodyHeight) + 0.0000000000000001;
+          });
         } else {
-          _anchor = 0;
+          setState(() {
+            _anchor = 1;
+          });
         }
+
+        messagesListController.jumpTo(0);
       });
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      final minScrollExtent = -messagesListController.position.minScrollExtent;
-
-      final appBarContext = _appBarKey.currentContext as StatefulElement?;
-
-      final bodyHeight = MediaQuery.of(context).size.height -
-          (appBarContext!.size!.height + _bottomHeight +  MediaQuery.of(context).padding.bottom);
-
-      this.bodyHeight = bodyHeight - 0.01;
-      if (minScrollExtent < bodyHeight && minScrollExtent > 0) {
-        setState(() {
-          _anchor = (minScrollExtent / bodyHeight) + 0.0000000000000001;
-        });
-      } else {
-        setState(() {
-          _anchor = 1;
-        });
-      }
-
-      messagesListController.jumpTo(0);
-    });
+    }
   }
 
   @override
@@ -171,55 +158,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
           resizeToAvoidBottomInset: true,
           body: Column(
             children: [
-              Expanded(
-                child: EasyRefresh(
-                  clipBehavior: Clip.none,
-                  onRefresh: topicChatData.loadMore,
-                  header: BuilderHeader(
-                      triggerOffset: 40,
-                      clamping: false,
-                      position: IndicatorPosition.above,
-                      infiniteOffset: null,
-                      processedDuration: Duration.zero,
-                      builder: (context, state) {
-                        return Stack(
-                          children: [
-                            SizedBox(
-                              height: state.offset,
-                              width: double.infinity,
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: Container(
-                                alignment: Alignment.center,
-                                width: double.infinity,
-                                height: 40,
-                                child: SpinKitCircle(
-                                  size: 24,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                            )
-                          ],
-                        );
-                      }),
-                  child: CustomScrollView(
-                    controller: messagesListController,
-                    center: _centerKey,
-                    anchor: _anchor,
-                    slivers: [
-                      _buildPageMessagesList(context),
-                      SliverPadding(
-                        padding: EdgeInsets.zero,
-                        key: _centerKey,
-                      ),
-                      _buildMqttMessagesList(context),
-                    ],
-                  ),
-                ),
-              ),
+              Expanded(child: _buildBody(context)),
               _buildBottom(context)
             ],
           ),
@@ -228,56 +167,97 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
     );
   }
 
-  Widget _buildPageMessagesList(BuildContext context) {
+  Widget _buildBody(BuildContext context) {
     return ValueListenableBuilder(
-      valueListenable: topicChatData.emptyMessage,
-      builder: (BuildContext context, empty, Widget? child) {
-        if (topicChatData.pageInitialData.isEmpty) {
-          return _buildPageMessagesListEmpty(context, empty);
-        } else {
-          return _buildPageMessagesListNotEmpty(context);
-        }
-      },
-    );
+        valueListenable: topicChatData.emptyMessage,
+        builder: (BuildContext context, empty, Widget? child) {
+          return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: empty
+                  ? _buildNoDataBody(context)
+                  : _buildHasDataBody(context));
+        });
   }
 
-  Widget _buildPageMessagesListEmpty(BuildContext context, bool empty) {
-    return SliverToBoxAdapter(
-      key: const ValueKey("PageMessagesListEmpty"),
-      child: empty
-          ? SlideFadeTransition(
-              child: Container(
-                height: bodyHeight,
-                alignment: Alignment.center,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Lottie.asset(
-                      "assets/lottie/empty_message.json",
-                      width: 300,
-                      height: 300,
-                      fit: BoxFit.cover,
-                    ),
-                    const SizedBox(
-                      height: 20,
-                    ),
-                    Text(
-                      "No messages...",
-                      style: Theme.of(context).textTheme.titleMedium,
-                    )
-                  ],
+  Widget _buildHasDataBody(BuildContext context) {
+    return EasyRefresh(
+      key: const ValueKey("HasDataBody"),
+      clipBehavior: Clip.none,
+      onRefresh: topicChatData.loadMore,
+      header: BuilderHeader(
+          triggerOffset: 40,
+          clamping: false,
+          position: IndicatorPosition.above,
+          infiniteOffset: null,
+          processedDuration: Duration.zero,
+          builder: (context, state) {
+            return Stack(
+              children: [
+                SizedBox(
+                  height: state.offset,
+                  width: double.infinity,
                 ),
-              ),
-            )
-          : Container(),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    alignment: Alignment.center,
+                    width: double.infinity,
+                    height: 40,
+                    child: SpinKitCircle(
+                      size: 24,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                )
+              ],
+            );
+          }),
+      child: CustomScrollView(
+        key: const ValueKey("MessagesList"),
+        controller: messagesListController,
+        center: _centerKey,
+        anchor: _anchor,
+        slivers: [
+          _buildPageMessagesList(context),
+          SliverPadding(
+            padding: EdgeInsets.zero,
+            key: _centerKey,
+          ),
+          _buildMqttMessagesList(context),
+        ],
+      ),
     );
   }
 
-  Widget _buildPageMessagesListNotEmpty(BuildContext context) {
-    return StreamProvider<List<(int, ChatMessage)>>(
+  Widget _buildNoDataBody(BuildContext context) {
+    return Column(
+      key: const ValueKey("NoDataBody"),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Lottie.asset(
+          "assets/lottie/empty_message.json",
+          width: 300,
+          height: 300,
+          fit: BoxFit.cover,
+        ),
+        const SizedBox(
+          height: 20,
+        ),
+        Text(
+          "No messages...",
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPageMessagesList(BuildContext context) {
+    return StreamProvider<List<(int, ChatMessage)>>.value(
       key: const ValueKey("PageMessagesListNotEmptyStreamProvider"),
       initialData: topicChatData.pageInitialData,
-      create: (BuildContext context) => topicChatData.pageMessageStream,
+      value: topicChatData.pageMessageStream,
       child: Consumer<List<(int, ChatMessage)>>(
         builder: (context, messages, child) {
           return SliverList.builder(
@@ -294,9 +274,9 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
   }
 
   Widget _buildMqttMessagesList(BuildContext context) {
-    return StreamProvider<List<(int, ChatMessage)>>(
+    return StreamProvider<List<(int, ChatMessage)>>.value(
       initialData: const [],
-      create: (BuildContext context) => topicChatData.mqttMessageStream,
+      value: topicChatData.mqttMessageStream,
       child: Consumer<List<(int, ChatMessage)>>(
         builder: (context, messages, child) {
           return DetectLifecycleScrollTo(

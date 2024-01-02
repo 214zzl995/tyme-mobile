@@ -46,37 +46,39 @@ class TopicChatData {
 
   List<(int, ChatMessage)> get pageInitialData => _pageInitialData;
 
-  Stream<List<(int, ChatMessage)>> get mqttMessageStream =>
-      _mqttMessageStream.mergeWith([_mqttMessageStreamController.stream]).scan(
+  late StreamSubscription _emptyMqttMessageStreamSubscription;
+
+  late Stream<List<(int, ChatMessage)>> mqttMessageStream = _mqttMessageStream
+      .mergeWith([_mqttMessageStreamController.stream]).scan(
           (accumulated, value, index) {
-        if (value.isEmpty) {
-          return [];
-        }
-        if (emptyMessage.value) {
-          emptyMessage.value = false;
-        }
+    if (value.isEmpty) {
+      return [];
+    }
+    if (emptyMessage.value) {
+      emptyMessage.value = false;
+    }
 
-        final accumulatedMaxIndex =
-            accumulated.isEmpty ? _oldMaxIndex : accumulated.last.$1;
+    final accumulatedMaxIndex =
+        accumulated.isEmpty ? _oldMaxIndex : accumulated.last.$1;
 
-        final newMessages = value.mapIndexed(
-            (index, message) => (index + accumulatedMaxIndex + 1, message.$2));
+    final newMessages = value.mapIndexed(
+        (index, message) => (index + accumulatedMaxIndex + 1, message.$2));
 
-        return [...accumulated, ...newMessages];
-      }, []);
+    return [...accumulated, ...newMessages];
+  }, []);
 
-  Stream<List<(int, ChatMessage)>> get pageMessageStream =>
+  late Stream<List<(int, ChatMessage)>> pageMessageStream =
       _pageMessageStreamController.stream.startWith(_pageInitialData).scan(
           (accumulated, value, index) {
-        if (accumulated.isNotEmpty &&
-            accumulated.last.$1 == 0 &&
-            value.isEmpty &&
-            _remove) {
-          _remove = false;
-          return [];
-        }
-        return [...accumulated, ...value];
-      }, []);
+    if (accumulated.isNotEmpty &&
+        accumulated.last.$1 == 0 &&
+        value.isEmpty &&
+        _remove) {
+      _remove = false;
+      return [];
+    }
+    return [...accumulated, ...value];
+  }, []);
 
   TopicChatData(this.topic, this._mqttMessageStream,
       {this.preloadCount = 20, this.moreMessageNumber = 30}) {
@@ -91,6 +93,10 @@ class TopicChatData {
             ? readIndex - 10
             : 0;
 
+    if (pageInitialData.isEmpty) {
+      _addEmptyMqttMessageStreamSubscription();
+    }
+
     Hive.box(readBox).listenable(keys: [key]).addListener(() {
       final readIndex = Hive.box(readBox).get(key);
       debugPrint("read_index changed,index:$readIndex");
@@ -98,11 +104,18 @@ class TopicChatData {
     });
   }
 
-  void changeReadIndex(int index)  {
+  void changeReadIndex(int index) {
     if (index > readIndex) {
       readIndex = index;
       Hive.box(readBox).put(key, index);
     }
+  }
+
+  void _addEmptyMqttMessageStreamSubscription() {
+    _emptyMqttMessageStreamSubscription = _mqttMessageStream.listen((event) {
+      _emptyMessage.value = false;
+      _emptyMqttMessageStreamSubscription.cancel();
+    });
   }
 
   List<(int, ChatMessage)> get _initialData {
@@ -149,6 +162,7 @@ class TopicChatData {
     _pageMessageStreamController.add([]);
     _mqttMessageStreamController.add([]);
     _pageInitialData = [];
+    _addEmptyMqttMessageStreamSubscription();
     if (!emptyMessage.value) {
       emptyMessage.value = true;
     }
