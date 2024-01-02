@@ -1,29 +1,29 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'clint_security_param.dart';
+part of 'client_security_param.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class ClintSecurityParamAdapter extends TypeAdapter<ClintSecurityParam> {
+class ClientSecurityParamAdapter extends TypeAdapter<ClientSecurityParam> {
   @override
   final int typeId = 2;
 
   @override
-  ClintSecurityParam read(BinaryReader reader) {
+  ClientSecurityParam read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return ClintSecurityParam(
+    return ClientSecurityParam(
       filename: fields[0] as String,
       fileContent: fields[1] as String,
     );
   }
 
   @override
-  void write(BinaryWriter writer, ClintSecurityParam obj) {
+  void write(BinaryWriter writer, ClientSecurityParam obj) {
     writer
       ..writeByte(2)
       ..writeByte(0)
@@ -38,7 +38,7 @@ class ClintSecurityParamAdapter extends TypeAdapter<ClintSecurityParam> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ClintSecurityParamAdapter &&
+      other is ClientSecurityParamAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

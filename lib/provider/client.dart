@@ -6,80 +6,90 @@ import 'dart:typed_data';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive/hive.dart';
+import 'package:hive_flutter/adapters.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:mqtt5_client/mqtt5_server_client.dart';
 import 'package:tyme/data/chat_message.dart';
-import 'package:tyme/data/clint_param.dart';
-import 'package:tyme/data/clint_security_param.dart';
+import 'package:tyme/data/client_param.dart';
+import 'package:tyme/data/client_security_param.dart';
 import '../notification.dart';
 
-class Clint extends ChangeNotifier {
-  final mqttClint = MqttServerClient("", "");
+class Client with ChangeNotifier {
+  final mqttClient = MqttServerClient("", "");
 
-  MqttConnectionState _clintStatus = MqttConnectionState.disconnected;
+  MqttConnectionState _clientStatus = MqttConnectionState.disconnected;
 
-  final ClintParam _clintParam;
+  final ClientParam _clientParam;
 
   bool disposeState = false;
 
   @override
   void dispose() {
     disposeState = true;
-    mqttClint.disconnect();
+    mqttClient.disconnect();
     super.dispose();
   }
 
-  Clint(this._clintParam) {
+  Client(this._clientParam) {
     init();
 
-    debugPrint(_clintParam.subscribeTopics.toString());
+    mqttClient.onConnected = onConnected;
+    mqttClient.onDisconnected = onDisconnected;
+    mqttClient.onAutoReconnect = onAutoReconnect;
+    mqttClient.onAutoReconnected = onAutoReconnected;
 
-    mqttClint.onConnected = onConnected;
-    mqttClint.onDisconnected = onDisconnected;
-    mqttClint.onAutoReconnect = onAutoReconnect;
-    mqttClint.onAutoReconnected = onAutoReconnected;
-    mqttClint.autoReconnect = true;
-    mqttClint.onSubscribed = (topic) {
+    mqttClient.autoReconnect = true;
+    mqttClient.onSubscribed = (topic) {
       debugPrint('tyme::client::::Subscription confirmed for topic $topic');
     };
 
-    connect(_clintParam.subscribeTopicWithSystem);
+    mqttClient.pongCallback = pong;
+
+    connect(_clientParam.subscribeTopicWithSystem);
   }
 
-  void restart([ClintParam? clintParam]) {
-    mqttClint.disconnect();
-    if (clintParam != null) {
+  void restart([ClientParam? clientParam]) {
+    mqttClient.disconnect();
+    if (clientParam != null) {
+      _clientParam
+        ..broker = clientParam.broker
+        ..port = clientParam.port
+        ..clientId = clientParam.clientId
+        ..username = clientParam.username
+        ..password = clientParam.password
+        ..securityParam = clientParam.securityParam;
       init();
     }
 
-    connect(_clintParam.subscribeTopicWithSystem);
+    connect(_clientParam.subscribeTopicWithSystem);
   }
 
   void init() {
-    mqttClint.port = _clintParam.port;
-    mqttClint.server = _clintParam.broker;
-    if (_clintParam.securityParam != null) {
-      mqttClint.securityContext = setCertificate(_clintParam.securityParam!);
+    mqttClient.port = _clientParam.port;
+    mqttClient.server = _clientParam.broker;
+    if (_clientParam.securityParam != null) {
+      mqttClient.securityContext = setCertificate(_clientParam.securityParam!);
     }
 
     final connMess = MqttConnectMessage()
-        .withClientIdentifier(_clintParam.clintId)
+        .withClientIdentifier(_clientParam.clientId)
         .startClean();
 
-    if (_clintParam.username != null && _clintParam.password != null) {
-      connMess.authenticateAs(_clintParam.username!, _clintParam.password!);
+    if (_clientParam.username != null && _clientParam.password != null) {
+      connMess.authenticateAs(_clientParam.username!, _clientParam.password!);
     }
 
-    mqttClint.connectionMessage = connMess;
-    mqttClint.secure = _clintParam.securityParam != null;
+    mqttClient.connectionMessage = connMess;
+    mqttClient.secure = _clientParam.securityParam != null;
   }
 
   void connect(List<SubscribeTopic> subscribeTopic) async {
     try {
-      _clintStatus = MqttConnectionState.connecting;
-      notifyListeners();
-      _startForegroundServiceClint();
-      await mqttClint.connect();
+      _updateClientStatus(MqttConnectionState.connecting);
+      _startForegroundServiceClient();
+      await mqttClient.connect();
+
+      debugPrint(connectionStatus!.state.toString());
 
       final mqttSubscriptionOption = MqttSubscriptionOption();
 
@@ -94,55 +104,53 @@ class Clint extends ChangeNotifier {
             MqttSubscriptionTopic(topic.topic), mqttSubscriptionOption);
       }).toList();
 
-      mqttClint.subscribeWithSubscriptionList(mqttSubscriptionList);
+      mqttClient.subscribeWithSubscriptionList(mqttSubscriptionList);
 
-      mqttClint.updates
+      mqttClient.updates
           .listen((List<MqttReceivedMessage<MqttMessage>> c) async {
         for (var message in c) {
-          final chatMessage = message.toChatMessage(_clintParam);
+          final chatMessage = message.toChatMessage(_clientParam);
           await chatMessage.insert();
-          if (chatMessage.sender != _clintParam.clintId){
+          if (chatMessage.sender != _clientParam.clientId) {
             chatMessage.showNotification();
           }
-
         }
       });
     } on Exception catch (e) {
       debugPrint('tyme::client exception - $e');
-      mqttClint.disconnect();
+      mqttClient.disconnect();
     }
   }
 
   /// 获取特定topic的Stream
   Stream<List<(int, ChatMessage)>> messagesByTopicStream(SubscribeTopic topic) {
     MqttTopicFilter topicFilter =
-        MqttTopicFilter(topic.topic, mqttClint.updates);
+        MqttTopicFilter(topic.topic, mqttClient.updates);
 
     return topicFilter.updates.map((newMessages) => newMessages
-        .map((message) => (-1, message.toChatMessage(_clintParam)))
+        .map((message) => (-1, message.toChatMessage(_clientParam)))
         .toList());
   }
 
   void onDisconnected() {
-    String reasonString = mqttClint.connectionStatus!.reasonString ?? "";
+    String reasonString = mqttClient.connectionStatus!.reasonString ?? "";
     _updateForegroundServiceDescription(
-        "🤨 Clint Disconnected \n $reasonString");
-
-    _clintStatus = connectionStatus!.state;
-    if (!disposeState) {
-      notifyListeners();
-    }
+        "🤨 Client Disconnected \n $reasonString");
+    _updateClientStatus();
   }
 
   /// The successful connect callback
   void onConnected() {
-    _clintStatus = connectionStatus!.state;
-    notifyListeners();
-    _updateForegroundServiceDescription("😀 Clint Connected!");
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      _updateClientStatus();
+    });
+
+    _updateForegroundServiceDescription("😀 Client Connected!");
   }
 
   void onAutoReconnect() {
-    _updateForegroundServiceDescription("🙄 Clint AutoReconnect!");
+    _updateForegroundServiceDescription("🙄 Client AutoReconnect!");
+    _updateClientStatus(MqttConnectionState.connecting);
   }
 
   void onAutoReconnected() {}
@@ -153,69 +161,86 @@ class Clint extends ChangeNotifier {
   }
 
   void subscriptionTopic(SubscribeTopic subscribeTopic) {
-    bool isExist = clintParam.subscribeTopics
+    bool isExist = clientParam.subscribeTopics
         .where((topic) => topic.topic == subscribeTopic.topic)
         .isNotEmpty;
 
     if (isExist) {
       return;
     }
-    if (mqttClint.connectionStatus != null) {
-      if (mqttClint.connectionStatus!.state == MqttConnectionState.connecting) {
-        mqttClint.subscribe(
+    if (mqttClient.connectionStatus != null) {
+      if (mqttClient.connectionStatus!.state ==
+          MqttConnectionState.connecting) {
+        mqttClient.subscribe(
             subscribeTopic.topic, MqttQos.values[subscribeTopic.qos]);
       }
     }
-    clintParam.addSubscribeTopic(subscribeTopic);
 
-    Hive.box('tyme_config').put("clint_param", clintParam);
-    Hive.openBox(subscribeTopic.hiveKey);
+    _clientParam.subscribeTopics = [
+      ..._clientParam.subscribeTopics,
+      subscribeTopic
+    ];
+
+    Hive.box('tyme_config').put("client_param", clientParam);
+    Hive.openBox<ChatMessage>(subscribeTopic.hiveKey);
     notifyListeners();
   }
 
-  void unSubscriptionTopic(SubscribeTopic subscribeTopic) {
-    if (mqttClint.connectionStatus != null) {
-      if (mqttClint.connectionStatus!.state == MqttConnectionState.connecting) {
+  Future<void> unSubscriptionTopic(SubscribeTopic subscribeTopic) async {
+    if (mqttClient.connectionStatus != null) {
+      if (mqttClient.connectionStatus!.state ==
+          MqttConnectionState.connecting) {
         final mqttSubscriptionOption = MqttSubscriptionOption();
         mqttSubscriptionOption.maximumQos = MqttQos.values[subscribeTopic.qos];
-        mqttClint.unsubscribeSubscription(MqttSubscription(
+        mqttClient.unsubscribeSubscription(MqttSubscription(
             MqttSubscriptionTopic(subscribeTopic.topic),
             mqttSubscriptionOption));
       }
     }
-    clintParam.subscribeTopics.remove(subscribeTopic);
 
-    Hive.box('tyme_config').put("clint_param", clintParam);
+    _clientParam.subscribeTopics = _clientParam.subscribeTopics
+        .where((topic) => topic.topic != subscribeTopic.topic)
+        .toList();
+
+    debugPrint(_clientParam.subscribeTopics.hashCode.toString());
+
+    await Hive.box('tyme_config').put("client_param", clientParam);
 
     final key = subscribeTopic.hiveKey;
-    Hive.box(key).deleteFromDisk();
-    Hive.box(key).close();
+    await Hive.box<ChatMessage>(key).deleteFromDisk();
 
     notifyListeners();
   }
 
-  Future<void> _startForegroundServiceClint() async {
+  Future<void> _startForegroundServiceClient() async {
     await _createNotificationChannel();
     await _startForegroundService();
   }
 
-  MqttConnectionState get clintStatus => _clintStatus;
+  void _updateClientStatus([MqttConnectionState? state]) {
+    _clientStatus = state ?? connectionStatus!.state;
+    if (!disposeState) {
+      notifyListeners();
+    }
+  }
 
-  MqttConnectionStatus? get connectionStatus => mqttClint.connectionStatus;
+  MqttConnectionState get clientStatus => _clientStatus;
 
-  ClintParam get clintParam => _clintParam;
+  MqttConnectionStatus? get connectionStatus => mqttClient.connectionStatus;
+
+  ClientParam get clientParam => _clientParam;
 }
 
-setCertificate(ClintSecurityParam clintSecurityParam) {
+setCertificate(ClientSecurityParam clientSecurityParam) {
   Uint8List bytes =
-      Uint8List.fromList(utf8.encode(clintSecurityParam.fileContent));
+      Uint8List.fromList(utf8.encode(clientSecurityParam.fileContent));
   SecurityContext context = SecurityContext.defaultContext;
   context.setTrustedCertificatesBytes(bytes);
   return context;
 }
 
 const foregroundServiceChannelId = "com.leri.tyme";
-const foregroundServiceChannelName = "clint_foreground_service";
+const foregroundServiceChannelName = "client_foreground_service";
 
 Future<void> _createNotificationChannel() async {
   const AndroidNotificationChannel androidNotificationChannel =

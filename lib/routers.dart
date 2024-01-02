@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:tyme/data/clint_param.dart';
+import 'package:tyme/data/client_param.dart';
 import 'package:tyme/pages/chat_page.dart';
 import 'package:tyme/pages/chat_topic_page.dart';
 import 'package:tyme/pages/demo_page.dart';
@@ -70,7 +70,6 @@ class TymeRouteConfiguration {
       (context, state) {
         SubscribeTopic? topic = state.extra as SubscribeTopic?;
         if (topic == null) {
-          // 获取state.uri 传递的topic 和qos
           final uri = state.uri;
           final String? topicStr = uri.queryParameters['topic'];
           final String? qosStr = uri.queryParameters['qos'];
@@ -78,7 +77,6 @@ class TymeRouteConfiguration {
           if (topicStr != null && qosStr != null) {
             topic = SubscribeTopic(topicStr, int.parse(qosStr));
           } else {
-            // 都不存在回Chat
             GoRouter.of(context).goNamed("Chat");
           }
         }
@@ -104,9 +102,9 @@ class TymeRouteConfiguration {
     ),
   ];
 
-  static routers(ClintParam? clintParam) {
+  static routers(ClientParam? clientParam) {
     return GoRouter(
-        initialLocation: clintParam == null ? initInitial : initial,
+        initialLocation: clientParam == null ? initInitial : initial,
         routes: [
           ShellRoute(
               navigatorKey: rootParentNavigatorKey,

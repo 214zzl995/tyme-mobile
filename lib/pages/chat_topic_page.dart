@@ -14,9 +14,9 @@ import '../components/dashed_line_message.dart';
 import '../components/detect_lifecycle.dart';
 import '../components/system_overlay_style_with_brightness.dart';
 import '../data/chat_message.dart';
-import '../data/clint_param.dart';
+import '../data/client_param.dart';
 import '../data/topic_chat_data.dart';
-import '../provider/clint.dart';
+import '../provider/client.dart';
 
 class ChatTopicPage extends StatefulWidget {
   const ChatTopicPage({Key? key, required this.topic}) : super(key: key);
@@ -38,7 +38,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
   ScrollController messagesListController = ScrollController();
 
   late TopicChatData topicChatData = TopicChatData(
-      widget.topic, context.read<Clint>().messagesByTopicStream(widget.topic),
+      widget.topic, context.read<Client>().messagesByTopicStream(widget.topic),
       preloadCount: preloadCount);
 
   late int initialScrollIndex =

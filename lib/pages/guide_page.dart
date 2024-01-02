@@ -6,11 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
-import 'package:tyme/data/clint_security_param.dart';
+import 'package:tyme/data/client_security_param.dart';
 
 import '../components/slide_fade_transition.dart';
 import '../components/system_overlay_style_with_brightness.dart';
-import '../data/clint_param.dart';
+import '../data/client_param.dart';
 
 class GuidePage extends StatefulWidget {
   const GuidePage({super.key});
@@ -196,11 +196,11 @@ class GuideSetting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final clintParamListenable = ValueNotifier(ClintParam());
+    final clientParamListenable = ValueNotifier(ClientParam());
 
     return ValueListenableBuilder(
-        valueListenable: clintParamListenable,
-        builder: (context, clintParam, widget) {
+        valueListenable: clientParamListenable,
+        builder: (context, clientParam, widget) {
           return Stack(
             children: [
               Container(
@@ -208,40 +208,40 @@ class GuideSetting extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 40, vertical: 0),
                   child: Column(
                     children: [
-                      _buildSubmitButton(context, clintParam),
+                      _buildSubmitButton(context, clientParam),
                       Expanded(
                           child: ListView(
                         padding: const EdgeInsets.only(top: 5),
                         children: [
                           _buildSettingInput(
                               context, "Broker", Icons.cloud_outlined, (value) {
-                            clintParamListenable.value =
-                                clintParam.copyWith(broker: value);
+                            clientParamListenable.value =
+                                clientParam.copyWith(broker: value);
                           }),
                           _buildSettingInput(
                               context, "Port", Icons.link_outlined, (value) {
-                            clintParamListenable.value = clintParam.copyWith(
+                            clientParamListenable.value = clientParam.copyWith(
                                 port: int.parse(value == "" ? "0" : value));
                           }, number: true),
                           _buildSettingInput(
-                              context, "ClintId", Icons.usb_outlined, (value) {
-                            clintParamListenable.value =
-                                clintParam.copyWith(clintId: value);
+                              context, "ClientId", Icons.usb_outlined, (value) {
+                            clientParamListenable.value =
+                                clientParam.copyWith(clientId: value);
                           }),
                           _buildSettingInput(context, "Username",
                               Icons.account_circle_outlined, (value) {
-                            clintParamListenable.value =
-                                clintParam.copyWith(username: value);
+                            clientParamListenable.value =
+                                clientParam.copyWith(username: value);
                           }, canNull: true),
                           _buildSettingInput(
                               context, "Password", Icons.password_outlined,
                               (value) {
-                            clintParamListenable.value =
-                                clintParam.copyWith(password: value);
+                            clientParamListenable.value =
+                                clientParam.copyWith(password: value);
                           }, password: true, canNull: true),
-                          _buildCrtFilePicker(context, clintParam, (value) {
-                            clintParamListenable.value =
-                                clintParam.copyWith(securityParam: value);
+                          _buildCrtFilePicker(context, clientParam, (value) {
+                            clientParamListenable.value =
+                                clientParam.copyWith(securityParam: value);
                           }),
                         ],
                       ))
@@ -252,7 +252,7 @@ class GuideSetting extends StatelessWidget {
         });
   }
 
-  Widget _buildSubmitButton(BuildContext context, ClintParam clintParam) {
+  Widget _buildSubmitButton(BuildContext context, ClientParam clientParam) {
     return Align(
       alignment: Alignment.centerRight,
       child: Container(
@@ -260,16 +260,16 @@ class GuideSetting extends StatelessWidget {
         height: 50,
         width: 150,
         child: ElevatedButton.icon(
-          onPressed: clintParam.isComplete
+          onPressed: clientParam.isComplete
               ? () {
                   Hive.box('tyme_config')
-                      .put("clint_param", clintParam)
+                      .put("client_param", clientParam)
                       .then((_) {
                     GoRouter.of(context).goNamed("Home");
                   });
                 }
               : null,
-          icon: clintParam.isComplete
+          icon: clientParam.isComplete
               ? const Icon(Icons.check_circle_outlined)
               : const Icon(Icons.error_outline_outlined),
           label: const Text('Submit'),
@@ -342,8 +342,8 @@ class GuideSetting extends StatelessWidget {
 
   Widget _buildCrtFilePicker(
     BuildContext context,
-    ClintParam clintParam,
-    ValueChanged<ClintSecurityParam> onChanged,
+    ClientParam clientParam,
+    ValueChanged<ClientSecurityParam> onChanged,
   ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -374,7 +374,7 @@ class GuideSetting extends StatelessWidget {
                           File file = File(result.files.single.path!);
                           String contents = await file.readAsString();
                           String fileName = result.files.single.name;
-                          final securityParam = ClintSecurityParam(
+                          final securityParam = ClientSecurityParam(
                               filename: fileName, fileContent: contents);
                           onChanged(securityParam);
                         } else {
@@ -395,9 +395,9 @@ class GuideSetting extends StatelessWidget {
                             width: 1),
                       ),
                       child: Text(
-                          clintParam.securityParam == null
+                          clientParam.securityParam == null
                               ? 'Select Crt File'
-                              : clintParam.securityParam!.filename,
+                              : clientParam.securityParam!.filename,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w400,

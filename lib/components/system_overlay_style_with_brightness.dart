@@ -1,7 +1,5 @@
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
 import '../utils/platform_check.dart';
@@ -37,15 +35,11 @@ class _SystemOverlayStyleWithBrightness
     final brightness = Theme.of(context).brightness;
     final darkMode = brightness == Brightness.dark;
     if (checkPlatform([TargetPlatform.android])) {
-      final androidSdkInt = context.read<AndroidDeviceInfo?>()!.version.sdkInt;
-      final bool edgeToEdge = androidSdkInt >= 29;
-
       return SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness:
             brightness == Brightness.light ? Brightness.dark : Brightness.light,
-        systemNavigationBarColor:
-            edgeToEdge ? Colors.transparent : widget.systemNavigationBarColor,
+        systemNavigationBarColor:Colors.transparent,
         systemNavigationBarContrastEnforced: false,
         systemNavigationBarIconBrightness:
             darkMode ? Brightness.light : Brightness.dark,

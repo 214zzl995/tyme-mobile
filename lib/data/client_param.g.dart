@@ -1,34 +1,34 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'clint_param.dart';
+part of 'client_param.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class ClintParamAdapter extends TypeAdapter<ClintParam> {
+class ClientParamAdapter extends TypeAdapter<ClientParam> {
   @override
   final int typeId = 1;
 
   @override
-  ClintParam read(BinaryReader reader) {
+  ClientParam read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return ClintParam(
+    return ClientParam(
       fields[0] as String,
       fields[1] as int,
       fields[2] as String,
       fields[3] as String?,
       fields[4] as String?,
-      fields[5] as ClintSecurityParam?,
+      fields[5] as ClientSecurityParam?,
       (fields[6] as List).cast<SubscribeTopic>(),
     );
   }
 
   @override
-  void write(BinaryWriter writer, ClintParam obj) {
+  void write(BinaryWriter writer, ClientParam obj) {
     writer
       ..writeByte(7)
       ..writeByte(0)
@@ -36,7 +36,7 @@ class ClintParamAdapter extends TypeAdapter<ClintParam> {
       ..writeByte(1)
       ..write(obj.port)
       ..writeByte(2)
-      ..write(obj.clintId)
+      ..write(obj.clientId)
       ..writeByte(3)
       ..write(obj.username)
       ..writeByte(4)
@@ -53,7 +53,7 @@ class ClintParamAdapter extends TypeAdapter<ClintParam> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ClintParamAdapter &&
+      other is ClientParamAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

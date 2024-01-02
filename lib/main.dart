@@ -9,8 +9,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:provider/provider.dart';
 import 'package:tyme/data/chat_message.dart';
-import 'package:tyme/data/clint_param.dart';
-import 'package:tyme/data/clint_security_param.dart';
+import 'package:tyme/data/client_param.dart';
+import 'package:tyme/data/client_security_param.dart';
 import 'package:tyme/routers.dart';
 
 import 'notification.dart';
@@ -72,7 +72,7 @@ class MyApp extends StatelessWidget {
                   ? ThemeMode.dark
                   : ThemeMode.light,
               routerConfig:
-                  TymeRouteConfiguration.routers(box.get("clint_param")),
+                  TymeRouteConfiguration.routers(box.get("client_param")),
             );
           },
         ));
@@ -80,8 +80,8 @@ class MyApp extends StatelessWidget {
 }
 
 Future<void> _hiveInit() async {
-  Hive.registerAdapter(ClintParamAdapter());
-  Hive.registerAdapter(ClintSecurityParamAdapter());
+  Hive.registerAdapter(ClientParamAdapter());
+  Hive.registerAdapter(ClientSecurityParamAdapter());
   Hive.registerAdapter(ChatMessageAdapter());
   Hive.registerAdapter(TopicAdapter());
   Hive.registerAdapter(MessageContentAdapter());
@@ -91,9 +91,9 @@ Future<void> _hiveInit() async {
   await Hive.initFlutter();
   await Hive.openBox("tyme_config");
   await Hive.openBox("tyme_chat_read_index");
-  final ClintParam? clintParam = Hive.box("tyme_config").get("clint_param");
-  if (clintParam != null) {
-    for (var key in clintParam.subscribeTopicWithSystemDbKey) {
+  final ClientParam? clientParam = Hive.box("tyme_config").get("client_param");
+  if (clientParam != null) {
+    for (var key in clientParam.subscribeTopicWithSystemDbKey) {
       Hive.openBox<ChatMessage>(key);
     }
   }

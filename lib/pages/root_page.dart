@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
-import 'package:tyme/data/clint_param.dart';
+import 'package:tyme/data/client_param.dart';
 import 'package:tyme/utils/android_utils.dart';
-import '../provider/clint.dart';
+import '../provider/client.dart';
 
 class RootPage extends StatelessWidget {
   const RootPage({super.key, required this.child});
@@ -13,8 +13,8 @@ class RootPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ClintParam? clintParam = Hive.box('tyme_config').get("clint_param");
-    if (clintParam == null) {
+    final ClientParam? clientParam = Hive.box('tyme_config').get("client_param");
+    if (clientParam == null) {
       GoRouter.of(context).goNamed("Guide");
     }
     return PopScope(
@@ -23,7 +23,7 @@ class RootPage extends StatelessWidget {
         AndroidUtils.navigateToSystemHome();
       },
       child: ChangeNotifierProvider(
-        create: (_) => Clint(clintParam!),
+        create: (_) => Client(clientParam!),
         lazy: false,
         child: child,
       ),

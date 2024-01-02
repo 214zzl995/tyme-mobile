@@ -4,7 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive/hive.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:nanoid/nanoid.dart';
-import 'package:tyme/data/clint_param.dart';
+import 'package:tyme/data/client_param.dart';
 
 import '../notification.dart';
 
@@ -98,13 +98,13 @@ enum MessageType {
 }
 
 extension ChatMqttMessage on MqttReceivedMessage<MqttMessage> {
-  ChatMessage toChatMessage(ClintParam clintParam) {
+  ChatMessage toChatMessage(ClientParam clientParam) {
     final payload = this.payload as MqttPublishMessage;
     final message = ChatMessage();
     message.id = nanoid();
     message.topic.topic = topic!;
     message.topic.header =
-        clintParam.getTopicHeader(topic!, payload.header!.qos.index);
+        clientParam.getTopicHeader(topic!, payload.header!.qos.index);
 
     message.retain = payload.header!.retain;
     message.timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -151,7 +151,7 @@ extension ChatMqttMessage on MqttReceivedMessage<MqttMessage> {
       message.content.type = MessageType.markDown;
     }
 
-    message.mine = sender == clintParam.clintId;
+    message.mine = sender == clientParam.clientId;
     return message;
   }
 }

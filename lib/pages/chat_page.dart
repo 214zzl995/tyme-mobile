@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:tyme/data/clint_param.dart';
+import 'package:tyme/data/client_param.dart';
 
 import '../components/slide_fade_transition.dart';
-import '../provider/clint.dart';
+import '../components/system_overlay_style_with_brightness.dart';
+import '../provider/client.dart';
 
 class ChatPage extends StatelessWidget {
   const ChatPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-
-
     return Scaffold(
       body: CustomScrollView(
         slivers: <Widget>[
@@ -25,7 +24,7 @@ class ChatPage extends StatelessWidget {
                 child: IconButton.filledTonal(
                     onPressed: () {
                       _buildAddTopicDialog(context, (value) {
-                        context.read<Clint>().subscriptionTopic(value);
+                        context.read<Client>().subscriptionTopic(value);
                       });
                     },
                     icon: const Icon(Icons.add_circle_outline)),
@@ -47,7 +46,7 @@ class ChatPage extends StatelessWidget {
               ),
             ),
           ),
-          Selector<Clint, List<SubscribeTopic>>(
+          Selector<Client, List<SubscribeTopic>>(
             builder: (BuildContext context,
                 List<SubscribeTopic> subscribeTopics, Widget? child) {
               return SliverList(
@@ -59,8 +58,7 @@ class ChatPage extends StatelessWidget {
                 ),
               );
             },
-            selector: (context, clint) => clint.clintParam.subscribeTopics,
-            shouldRebuild: (previous, next) => previous.length == next.length,
+            selector: (context, client) => client.clientParam.subscribeTopics,
           ),
         ],
       ),
@@ -83,7 +81,10 @@ class ChatPage extends StatelessWidget {
     final popToolsTextStyle =
         TextStyle(color: Theme.of(context).colorScheme.onInverseSurface);
 
+    final menuController = MenuController();
+
     return MenuAnchor(
+        controller: menuController,
         clipBehavior: Clip.none,
         alignmentOffset: Offset(
             MediaQuery.of(context).size.width / 2 - popToolsWidth / 2,
@@ -110,7 +111,12 @@ class ChatPage extends StatelessWidget {
                     Expanded(
                         child: TextButton(
                             style: popToolsButtonStyle,
-                            onPressed: () {},
+                            onPressed: () {
+                              context
+                                  .read<Client>()
+                                  .unSubscriptionTopic(topic)
+                                  .then((value) => menuController.close());
+                            },
                             child: Text(
                               "Delete",
                               style: popToolsTextStyle,
@@ -255,98 +261,103 @@ class ChatPage extends StatelessWidget {
 
   _buildAddTopicDialog(
       BuildContext context, ValueSetter<SubscribeTopic> callback) {
+    final systemOverlayStyle = Color.alphaBlend(
+        Colors.black54,
+        ElevationOverlay.colorWithOverlay(Theme.of(context).colorScheme.surface,
+            Theme.of(context).colorScheme.surfaceTint, 3));
+
     SubscribeTopic subscribeTopic = SubscribeTopic.empty();
     subscribeTopic.qos = 1;
     showDialog<String>(
       context: context,
-      builder: (BuildContext context) => Dialog(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Row(
-                children: [
-                  const Icon(Icons.add),
-                  const SizedBox(width: 20),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+      builder: (BuildContext context) => SystemOverlayStyleWithBrightness(
+          sized: false,
+          systemNavigationBarColor: systemOverlayStyle,
+          child: Dialog(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Row(
                     children: [
-                      Text(
-                        "Topic",
-                        style: Theme.of(context).textTheme.titleMedium,
+                      const Icon(Icons.add),
+                      const SizedBox(width: 20),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Topic",
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ],
                       ),
                     ],
                   ),
+                  const SizedBox(height: 30),
+                  TextField(
+                    cursorOpacityAnimates: true,
+                    textInputAction: TextInputAction.newline,
+                    autofocus: true,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: "topic",
+                    ),
+                    onChanged: (String value) {
+                      subscribeTopic.topic = value;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  DropdownMenu<int>(
+                    initialSelection: 1,
+                    requestFocusOnTap: true,
+                    expandedInsets: const EdgeInsets.all(0),
+                    label: const Text('Qos'),
+                    onSelected: (int? value) {
+                      subscribeTopic.qos = value ?? 1;
+                    },
+                    dropdownMenuEntries: qosList
+                        .map<DropdownMenuEntry<int>>(((int, String) value) {
+                      return DropdownMenuEntry<int>(
+                          value: value.$1,
+                          label: value.$2,
+                          labelWidget: Row(
+                            children: [Text(value.$2)],
+                          ));
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 30),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        child: Text('Close',
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error)),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          // 需要校验subscribeTopic
+                          if (subscribeTopic.topic != "") {
+                            callback(subscribeTopic);
+                          }
+                          Navigator.pop(context);
+                        },
+                        child: const Text('Confirm'),
+                      ),
+                    ],
+                  )
                 ],
               ),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: 300,
-                child: TextField(
-                  cursorOpacityAnimates: true,
-                  textInputAction: TextInputAction.newline,
-                  autofocus: true,
-                  maxLines: null,
-                  keyboardType: TextInputType.multiline,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: "topic",
-                  ),
-                  onChanged: (String value) {
-                    subscribeTopic.topic = value;
-                  },
-                ),
-              ),
-              const SizedBox(height: 20),
-              DropdownMenu<int>(
-                width: 300,
-                initialSelection: 1,
-                requestFocusOnTap: true,
-                label: const Text('Qos'),
-                onSelected: (int? value) {
-                  subscribeTopic.qos = value ?? 1;
-                },
-                dropdownMenuEntries:
-                    qosList.map<DropdownMenuEntry<int>>(((int, String) value) {
-                  return DropdownMenuEntry<int>(
-                      value: value.$1,
-                      label: value.$2,
-                      labelWidget: Row(
-                        children: [Text(value.$2)],
-                      ));
-                }).toList(),
-              ),
-              const SizedBox(height: 30),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: Text('Close',
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.error)),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      // 需要校验subscribeTopic
-                      if (subscribeTopic.topic != "") {
-                        callback(subscribeTopic);
-                      }
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Confirm'),
-                  ),
-                ],
-              )
-            ],
-          ),
-        ),
-      ),
+            ),
+          )),
     );
   }
 

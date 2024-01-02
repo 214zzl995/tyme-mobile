@@ -1,12 +1,12 @@
 import 'package:hive/hive.dart';
 import 'package:tyme/utils/crypto_utils.dart';
 
-import 'clint_security_param.dart';
+import 'client_security_param.dart';
 
-part 'clint_param.g.dart';
+part 'client_param.g.dart';
 
 @HiveType(typeId: 1)
-class ClintParam {
+class ClientParam {
   @HiveField(0)
   String broker = "";
 
@@ -14,7 +14,7 @@ class ClintParam {
   int port = -1;
 
   @HiveField(2)
-  String clintId = "";
+  String clientId = "";
 
   @HiveField(3)
   String? username;
@@ -23,60 +23,60 @@ class ClintParam {
   String? password;
 
   @HiveField(5)
-  ClintSecurityParam? securityParam;
+  ClientSecurityParam? securityParam;
 
   @HiveField(6)
-  List<SubscribeTopic> subscribeTopics = [];
+  List<SubscribeTopic> subscribeTopics = List.empty();
 
   bool get isComplete =>
       broker != "" &&
       port != -1 &&
-      clintId != "" &&
+      clientId != "" &&
       ((username != null) == (password != null));
 
   copyWith(
       {String? broker,
       int? port,
-      String? clintId,
+      String? clientId,
       String? username,
       String? password,
-      ClintSecurityParam? securityParam,
+      ClientSecurityParam? securityParam,
       List<SubscribeTopic>? subscribeTopics}) {
-    final clintParam = ClintParam(
+    final clientParam = ClientParam(
         broker ?? this.broker,
         port ?? this.port,
-        clintId ?? this.clintId,
+        clientId ?? this.clientId,
         username ?? this.username,
         password ?? this.password,
         securityParam ?? this.securityParam,
         subscribeTopics ?? this.subscribeTopics);
 
-    return clintParam;
+    return clientParam;
   }
 
-  void from(ClintParam from) {
+  void from(ClientParam from) {
     broker = from.broker;
     port = from.port;
-    clintId = from.clintId;
+    clientId = from.clientId;
     username = from.username;
     password = from.password;
     securityParam = from.securityParam;
     subscribeTopics = List.from(from.subscribeTopics);
   }
 
-  bool equals(ClintParam other) {
+  bool equals(ClientParam other) {
     return broker == other.broker &&
         port == other.port &&
-        clintId == other.clintId &&
+        clientId == other.clientId &&
         username == other.username &&
         password == other.password &&
-        securityParam == other.securityParam;
+        securityParam?.fileContent == other.securityParam?.fileContent;
   }
 
-  ClintParam(
+  ClientParam(
       [this.broker = "",
       this.port = -1,
-      this.clintId = "",
+      this.clientId = "",
       this.username,
       this.password,
       this.securityParam,
@@ -126,7 +126,6 @@ class ClintParam {
       }
     }
 
-    // 如果没有找到匹配的项，返回一个空字符串
     return SubscribeTopic.empty();
   }
 
@@ -149,4 +148,9 @@ class SubscribeTopic {
   SubscribeTopic.empty();
 
   String get hiveKey => CryptoUtils.md5Encrypt("tyme_chat_$topic");
+
+  @override
+  String toString() {
+    return 'SubscribeTopic{topic: $topic, qos: $qos}';
+  }
 }

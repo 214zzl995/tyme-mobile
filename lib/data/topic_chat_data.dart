@@ -6,7 +6,7 @@ import 'package:hive_flutter/adapters.dart';
 import 'package:rxdart/rxdart.dart';
 
 import 'chat_message.dart';
-import 'clint_param.dart';
+import 'client_param.dart';
 
 class TopicChatData {
   static String readBox = "tyme_chat_read_index";

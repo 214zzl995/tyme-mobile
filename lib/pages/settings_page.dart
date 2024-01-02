@@ -5,16 +5,20 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/adapters.dart';
-import 'package:tyme/data/clint_param.dart';
+import 'package:provider/provider.dart';
+import 'package:tyme/data/client_param.dart';
 
 import '../components/system_overlay_style_with_brightness.dart';
-import '../data/clint_security_param.dart';
+import '../data/client_security_param.dart';
+import '../provider/client.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    ValueNotifier<bool> refresh = ValueNotifier(false);
+    ClientParam beginClientParam = Hive.box('tyme_config').get("client_param");
     return Scaffold(
       body: CustomScrollView(
         slivers: <Widget>[
@@ -24,87 +28,120 @@ class SettingsPage extends StatelessWidget {
           ),
           ValueListenableBuilder(
               valueListenable:
-                  Hive.box('tyme_config').listenable(keys: ["clint_param"]),
+                  Hive.box('tyme_config').listenable(keys: ["client_param"]),
               builder: (context, tymeConfig, widget) {
-                final clintParam = tymeConfig.get("clint_param") as ClintParam;
+                final clientParam = tymeConfig.get("client_param") as ClientParam;
                 return SliverList.list(children: [
-                  _buildSettingGroupHeader(context, "Clint"),
-                  _buildSettingItem(context, "Broker", clintParam.broker,
+                  _buildSettingGroupHeader(context, "Client"),
+                  _buildSettingItem(context, "Broker", clientParam.broker,
                       Icons.cloud_outlined, () {
-                    _buildEditDialog(context, "Broker", clintParam.broker,
+                    _buildEditDialog(context, "Broker", clientParam.broker,
                         Icons.cloud_outlined, (value) async {
-                      if (value != clintParam.broker) {
-                        final editClintParam =
-                            clintParam.copyWith(broker: value);
+                      if (value != clientParam.broker) {
+                        final editClientParam =
+                            clientParam.copyWith(broker: value);
                         Hive.box('tyme_config')
-                            .put("clint_param", editClintParam);
+                            .put("client_param", editClientParam);
+
+                        refresh.value = !editClientParam.equals(beginClientParam);
                       }
                     });
                   }),
-                  _buildSettingItem(context, "Port", clintParam.port.toString(),
+                  _buildSettingItem(context, "Port", clientParam.port.toString(),
                       Icons.link_outlined, () {
                     _buildEditDialog(
                         context,
                         "Port",
-                        clintParam.port.toString(),
+                        clientParam.port.toString(),
                         Icons.link_outlined, (value) async {
-                      if (value != clintParam.port) {
-                        final editClintParam = clintParam.copyWith(port: value);
+                      if (value != clientParam.port) {
+                        final editClientParam = clientParam.copyWith(port: value);
 
                         Hive.box('tyme_config')
-                            .put("clint_param", editClintParam);
+                            .put("client_param", editClientParam);
+
+                        refresh.value = !editClientParam.equals(beginClientParam);
                       }
                     }, number: true);
                   }),
-                  _buildSettingItem(context, "Clint ID", clintParam.clintId,
+                  _buildSettingItem(context, "Client ID", clientParam.clientId,
                       Icons.usb_outlined, () {
-                    _buildEditDialog(context, "Clint ID", clintParam.clintId,
+                    _buildEditDialog(context, "Client ID", clientParam.clientId,
                         Icons.usb_outlined, (value) async {
-                      if (value != clintParam.clintId) {
-                        final editClintParam =
-                            clintParam.copyWith(clintId: value);
+                      if (value != clientParam.clientId) {
+                        final editClientParam =
+                            clientParam.copyWith(clientId: value);
 
                         Hive.box('tyme_config')
-                            .put("clint_param", editClintParam);
+                            .put("client_param", editClientParam);
+
+                        refresh.value = !editClientParam.equals(beginClientParam);
                       }
                     });
                   }),
-                  _buildSettingItem(context, "Username", clintParam.username,
+                  _buildSettingItem(context, "Username", clientParam.username,
                       Icons.account_circle_outlined, () {
-                    _buildEditDialog(context, "Username", clintParam.username,
+                    _buildEditDialog(context, "Username", clientParam.username,
                         Icons.account_circle_outlined, (value) async {
-                      if (value != clintParam.username) {
-                        final editClintParam =
-                            clintParam.copyWith(username: value);
+                      if (value != clientParam.username) {
+                        final editClientParam =
+                            clientParam.copyWith(username: value);
 
                         Hive.box('tyme_config')
-                            .put("clint_param", editClintParam);
+                            .put("client_param", editClientParam);
+
+                        refresh.value = !editClientParam.equals(beginClientParam);
                       }
                     }, canNull: true);
                   }),
                   _buildSettingItem(context, "Password",
-                      clintParam.password?.hide(), Icons.password_outlined, () {
-                    _buildEditDialog(context, "Password", clintParam.password,
+                      clientParam.password?.hide(), Icons.password_outlined, () {
+                    _buildEditDialog(context, "Password", clientParam.password,
                         Icons.password_outlined, (value) async {
-                      if (value != clintParam.password) {
-                        final editClintParam =
-                            clintParam.copyWith(password: value);
+                      if (value != clientParam.password) {
+                        final editClientParam =
+                            clientParam.copyWith(password: value);
 
                         Hive.box('tyme_config')
-                            .put("clint_param", editClintParam);
+                            .put("client_param", editClientParam);
+
+                        refresh.value = !editClientParam.equals(beginClientParam);
                       }
                     }, password: true, canNull: true);
                   }),
                   _buildSettingItem(
                       context,
                       "Certificate",
-                      clintParam.securityParam?.filename,
+                      clientParam.securityParam?.filename,
                       Icons.security_outlined, () {
-                    _filePicker(tymeConfig.get("clint_param")).then((_) {});
+                    _filePicker(tymeConfig.get("client_param"))
+                        .then((editClientParam) {
+                      refresh.value = !editClientParam.equals(beginClientParam);
+                    });
                   }),
                 ]);
               })
         ],
+      ),
+      floatingActionButton: ValueListenableBuilder(
+        valueListenable: refresh,
+        builder: (context, refreshEnable, child) {
+          if (!refreshEnable) {
+            return Container();
+          }
+          return child!;
+        },
+        child: FloatingActionButton(
+          onPressed: () {
+            final clientParam =
+                Hive.box('tyme_config').get("client_param") as ClientParam;
+            beginClientParam = clientParam;
+            context.read<Client>().restart(clientParam);
+            refresh.value = false;
+          },
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          child: const Icon(Icons.refresh),
+        ),
       ),
     );
   }
@@ -161,14 +198,16 @@ class SettingsPage extends StatelessWidget {
 
   _buildEditDialog(BuildContext context, String title, String? defaultValue,
       IconData icon, AsyncValueSetter confirmCallback,
-      {bool number = false, bool password = false, bool canNull = false}) {
+      {bool number = false,
+      bool password = false,
+      bool canNull = false}) async {
     String editText = "";
     final systemOverlayStyle = Color.alphaBlend(
         Colors.black54,
         ElevationOverlay.colorWithOverlay(Theme.of(context).colorScheme.surface,
             Theme.of(context).colorScheme.surfaceTint, 3));
 
-    showDialog<String>(
+    await showDialog<String>(
       context: context,
       builder: (BuildContext context) => Dialog(
         child: SystemOverlayStyleWithBrightness(
@@ -258,7 +297,7 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  _filePicker(ClintParam clintParam) async {
+  Future<ClientParam> _filePicker(ClientParam clientParam) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['crt'],
@@ -268,14 +307,15 @@ class SettingsPage extends StatelessWidget {
       String contents = await file.readAsString();
       String fileName = result.files.single.name;
       final securityParam =
-          ClintSecurityParam(filename: fileName, fileContent: contents);
+          ClientSecurityParam(filename: fileName, fileContent: contents);
 
-      final editClintParam = clintParam.copyWith(securityParam: securityParam);
+      final editClientParam = clientParam.copyWith(securityParam: securityParam);
 
-      Hive.box('tyme_config').put("clint_param", editClintParam);
-    } else {
-      // User canceled the picker
+      Hive.box('tyme_config').put("client_param", editClientParam);
+
+      return editClientParam;
     }
+    return clientParam;
   }
 }
 
