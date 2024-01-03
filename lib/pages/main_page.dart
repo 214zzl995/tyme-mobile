@@ -89,7 +89,9 @@ class MainPage extends StatelessWidget {
                           vertical: 5, horizontal: 15),
                       child: Text(
                         value.name,
-                        style: Theme.of(context).textTheme.titleSmall,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: getStatusColor(context, value)
+                        ),
                       ),
                     ),
               transitionBuilder: (child, animation) {
@@ -108,6 +110,19 @@ class MainPage extends StatelessWidget {
         selector: (BuildContext context, Client client) => client.clientStatus,
       ),
     );
+  }
+
+  Color getStatusColor(BuildContext context, MqttConnectionState status) {
+    switch (status) {
+      case MqttConnectionState.connected:
+        return Theme.of(context).colorScheme.primary;
+      case MqttConnectionState.connecting:
+        return Theme.of(context).colorScheme.primary;
+      case MqttConnectionState.disconnected:
+        return Theme.of(context).colorScheme.error;
+      default:
+        return Theme.of(context).colorScheme.error;
+    }
   }
 
   int getSelectedIndex(BuildContext context) {
