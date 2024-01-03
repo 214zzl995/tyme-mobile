@@ -1,14 +1,15 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/single_child_widget.dart';
 
 class DetectLifecycleScrollTo extends SingleChildStatefulWidget {
   const DetectLifecycleScrollTo({
     Key? key,
-    required this.build,
-    Widget? child,
+    required this.scroll,
+    required Widget child,
   }) : super(key: key, child: child);
 
-  final ValueWidgetBuilder<AppLifecycleState> build;
+  final VoidCallback scroll;
 
   @override
   State<StatefulWidget> createState() => _DetectLifecycleScrollToState();
@@ -33,13 +34,10 @@ class _DetectLifecycleScrollToState extends SingleChildState<DetectLifecycleScro
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (_lifecycleState != state) {
-      setState(() {
-        _lifecycleState = state;
-      });
+      widget.scroll();
     }
   }
 
   @override
-  Widget buildWithChild(BuildContext context, Widget? child) =>
-      widget.build(context, _lifecycleState, child);
+  Widget buildWithChild(BuildContext context, Widget? child) => child!;
 }

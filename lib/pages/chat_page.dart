@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:tyme/data/client_param.dart';
 
 import '../components/slide_fade_transition.dart';
-import '../components/system_overlay_style_with_brightness.dart';
 import '../provider/client.dart';
 
 class ChatPage extends StatelessWidget {
@@ -220,10 +219,6 @@ class ChatPage extends StatelessWidget {
 
   _buildAddTopicDialog(
       BuildContext context, ValueSetter<SubscribeTopic> callback) {
-    final systemOverlayStyle = Color.alphaBlend(
-        Colors.black54,
-        ElevationOverlay.colorWithOverlay(Theme.of(context).colorScheme.surface,
-            Theme.of(context).colorScheme.surfaceTint, 3));
 
     SubscribeTopic subscribeTopic = SubscribeTopic.empty();
     subscribeTopic.qos = 1;

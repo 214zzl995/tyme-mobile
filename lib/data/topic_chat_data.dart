@@ -18,7 +18,7 @@ class TopicChatData {
 
   final ValueNotifier<int> _readIndex = ValueNotifier(-1);
   late final ValueNotifier<bool> _noMore =
-      ValueNotifier(_pageInitialData.isEmpty || _pageInitialData.first.$1 == 0);
+      ValueNotifier(_pageInitialData.isEmpty || _pageInitialData.last.$1 == 0);
 
   late int moreMessageNumber;
 
@@ -121,7 +121,6 @@ class TopicChatData {
     int endKey = skipCount - 1 < 0 ? 0 : skipCount - 1;
 
     if (startKey == 0 && endKey == 0) {
-      _noMore.value = true;
       return [];
     }
 
@@ -129,6 +128,10 @@ class TopicChatData {
         .valuesBetween(startKey: startKey, endKey: endKey)
         .mapIndexed((index, msg) => (index + startKey, msg))
         .toList();
+
+    if (moreMessages.first.$1 == 0) {
+      _noMore.value = true;
+    }
 
     skipCount = skipCount - moreMessages.length;
 
@@ -149,6 +152,7 @@ class TopicChatData {
     skipCount = 0;
     _readIndex.value = 0;
     _remove = true;
+    _noMore.value = true;
     _pageInitialData = [];
     _pageMessageStreamController.add([]);
     _mqttMessageStreamController.add([]);
@@ -162,4 +166,6 @@ class TopicChatData {
   ValueNotifier<int> get readIndex => _readIndex;
 
   int get readIndexValue => _readIndex.value;
+
+  ValueNotifier<bool> get noMore => _noMore;
 }

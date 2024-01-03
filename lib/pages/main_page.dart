@@ -60,7 +60,8 @@ class MainPage extends StatelessWidget {
   Widget _buildMqttStateBar(BuildContext context) {
     const statusBarHeight = 40.0;
     return Positioned(
-      top: -statusBarHeight,
+      top: -statusBarHeight - 5,
+      left: 5,
       child: Selector<Client, MqttConnectionState>(
         builder:
             (BuildContext context, MqttConnectionState value, Widget? child) {
@@ -79,19 +80,38 @@ class MainPage extends StatelessWidget {
                             Theme.of(context).colorScheme.surface,
                             Theme.of(context).colorScheme.surfaceTint,
                             3),
-                        borderRadius: const BorderRadius.only(
-                          topRight: Radius.circular(10),
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(10),
                         ),
                       ),
-                      width: 120,
+                      width: 150,
                       height: statusBarHeight,
                       padding: const EdgeInsets.symmetric(
                           vertical: 5, horizontal: 15),
-                      child: Text(
-                        value.name,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: getStatusColor(context, value)
-                        ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 20,
+                            height: 20,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: getStatusColor(context, value),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: getStatusIcon(context, value),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            getStatusText(context, value),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                    color: getStatusColor(context, value)),
+                          )
+                        ],
                       ),
                     ),
               transitionBuilder: (child, animation) {
@@ -112,16 +132,50 @@ class MainPage extends StatelessWidget {
     );
   }
 
+  getStatusIcon(BuildContext context, MqttConnectionState status) {
+    switch (status) {
+      case MqttConnectionState.connected:
+        return const Icon(
+          Icons.check_circle_outline,
+        );
+      case MqttConnectionState.connecting:
+        return const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+          ),
+        );
+      case MqttConnectionState.disconnected:
+        return Container();
+      default:
+        return Container();
+    }
+  }
+
   Color getStatusColor(BuildContext context, MqttConnectionState status) {
     switch (status) {
       case MqttConnectionState.connected:
-        return Theme.of(context).colorScheme.primary;
+        return Theme.of(context).colorScheme.onPrimaryContainer;
       case MqttConnectionState.connecting:
-        return Theme.of(context).colorScheme.primary;
+        return Theme.of(context).colorScheme.onPrimaryContainer;
       case MqttConnectionState.disconnected:
         return Theme.of(context).colorScheme.error;
       default:
         return Theme.of(context).colorScheme.error;
+    }
+  }
+
+  String getStatusText(BuildContext context, MqttConnectionState status) {
+    switch (status) {
+      case MqttConnectionState.connected:
+        return "Connected";
+      case MqttConnectionState.connecting:
+        return "Connecting...";
+      case MqttConnectionState.disconnected:
+        return "Disconnected";
+      default:
+        return status.name;
     }
   }
 

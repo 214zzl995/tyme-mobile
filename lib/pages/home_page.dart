@@ -84,7 +84,9 @@ class HomePage extends StatelessWidget {
                 height: 30,
               ),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  Provider.of<Client>(context, listen: false).restart();
+                },
                 child: const Text('Connect'),
               )
             ],
