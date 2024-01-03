@@ -36,6 +36,7 @@ dependencies:
   sliver_tools: ^0.2.12
   dynamic_color: ^1.6.3
   device_info_plus: ^9.1.1
+  flutter_svg: ^2.0.9
 
 dev_dependencies:
   flutter_test:

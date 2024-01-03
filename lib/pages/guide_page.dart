@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import 'package:tyme/data/client_security_param.dart';
@@ -64,13 +65,32 @@ class GuidePageState extends State<GuidePage>
                         ],
                       ),
                     ),
-                    child: Text(
-                      'Tyme',
-                      style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                          color:
-                              Theme.of(context).colorScheme.onPrimaryContainer),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 13),
+                          child: SvgPicture.asset(
+                            "assets/icons/app_ico.svg",
+                            semanticsLabel: 'Tyme Logo',
+                            width: 80,
+                            height: 80,
+                          ),
+                        ),
+                        const SizedBox(
+                          width: 10,
+                        ),
+                        Text(
+                          'Tyme',
+                          style: TextStyle(
+                              fontSize: 40,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer),
+                        )
+                      ],
                     ),
                   ),
                   Expanded(
