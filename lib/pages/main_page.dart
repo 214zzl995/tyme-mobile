@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mqtt5_client/mqtt5_client.dart';
+import 'package:provider/provider.dart';
 import '../components/system_overlay_style_with_brightness.dart';
+import '../provider/client.dart';
 import '../routers.dart';
 import 'package:collection/collection.dart';
 
@@ -29,23 +32,82 @@ class MainPage extends StatelessWidget {
             currentIndex: navigationShell.currentIndex,
             children: children,
           ),
-          bottomNavigationBar: NavigationBar(
-            elevation: 3,
-            onDestinationSelected: (index) {
-              GoRouter.of(context)
-                  .go(TymeRouteConfiguration.navPaths[index].path);
-            },
-            selectedIndex: getSelectedIndex(context),
-            destinations: [
-              ...List.of(TymeRouteConfiguration.navPaths).map((path) {
-                return NavigationDestination(
-                  icon: path.icon ?? const Icon(Icons.waving_hand),
-                  label: path.name,
-                );
-              })
+          bottomNavigationBar: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              _buildMqttStateBar(context),
+              NavigationBar(
+                elevation: 3,
+                onDestinationSelected: (index) {
+                  GoRouter.of(context)
+                      .go(TymeRouteConfiguration.navPaths[index].path);
+                },
+                selectedIndex: getSelectedIndex(context),
+                destinations: [
+                  ...List.of(TymeRouteConfiguration.navPaths).map((path) {
+                    return NavigationDestination(
+                      icon: path.icon ?? const Icon(Icons.waving_hand),
+                      label: path.name,
+                    );
+                  })
+                ],
+              ),
             ],
           ),
         ));
+  }
+
+  Widget _buildMqttStateBar(BuildContext context) {
+    const statusBarHeight = 40.0;
+    return Positioned(
+      top: -statusBarHeight,
+      child: Selector<Client, MqttConnectionState>(
+        builder:
+            (BuildContext context, MqttConnectionState value, Widget? child) {
+          return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: value == MqttConnectionState.connected
+                  ? Container(
+                      height: 0,
+                      key: const ValueKey("BottomNavigationBarHide"),
+                    )
+                  : Container(
+                      key: const ValueKey("BottomNavigationBarShow"),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: ElevationOverlay.colorWithOverlay(
+                            Theme.of(context).colorScheme.surface,
+                            Theme.of(context).colorScheme.surfaceTint,
+                            3),
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(10),
+                        ),
+                      ),
+                      width: 120,
+                      height: statusBarHeight,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 5, horizontal: 15),
+                      child: Text(
+                        value.name,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+              transitionBuilder: (child, animation) {
+                return SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 1), // Start position
+                    end: Offset.zero, // End position
+                  ).animate(animation),
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                );
+              });
+        },
+        selector: (BuildContext context, Client client) => client.clientStatus,
+      ),
+    );
   }
 
   int getSelectedIndex(BuildContext context) {

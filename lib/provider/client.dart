@@ -23,6 +23,8 @@ class Client with ChangeNotifier {
 
   bool disposeState = false;
 
+  String? _errorHint;
+
   @override
   void dispose() {
     disposeState = true;
@@ -118,6 +120,7 @@ class Client with ChangeNotifier {
       });
     } on Exception catch (e) {
       debugPrint('tyme::client exception - $e');
+      _errorHint = e.toString();
       mqttClient.disconnect();
     }
   }
@@ -143,6 +146,7 @@ class Client with ChangeNotifier {
   void onConnected() {
     _updateClientStatus();
     _updateForegroundServiceDescription("😀 Client Connected!");
+    _errorHint = null;
   }
 
   void onAutoReconnect() {
@@ -226,6 +230,8 @@ class Client with ChangeNotifier {
   MqttConnectionStatus? get connectionStatus => mqttClient.connectionStatus;
 
   ClientParam get clientParam => _clientParam;
+
+  String? get errorHint => _errorHint ?? connectionStatus?.reasonString ;
 }
 
 setCertificate(ClientSecurityParam clientSecurityParam) {

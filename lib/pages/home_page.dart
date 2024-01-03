@@ -58,9 +58,27 @@ class HomePage extends StatelessWidget {
                 'Disconnected',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
-              Text(
-                'Please connect to the server',
-                style: Theme.of(context).textTheme.bodySmall,
+              SizedBox(
+                width: MediaQuery.of(context).size.width * 0.7,
+                child: Selector<Client, String?>(
+                    builder: (BuildContext context, value, Widget? child) {
+                      if (value != null) {
+                        return Text(value,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                    color:
+                                        Theme.of(context).colorScheme.error));
+                      } else {
+                        return Text(
+                          'Please connect to the server',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        );
+                      }
+                    },
+                    selector: (BuildContext context, Client client) =>
+                        client.errorHint),
               ),
               const SizedBox(
                 height: 30,
