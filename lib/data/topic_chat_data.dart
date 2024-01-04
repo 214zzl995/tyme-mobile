@@ -16,9 +16,13 @@ class TopicChatData {
   final SubscribeTopic topic;
   int preloadCount;
 
-  final ValueNotifier<int> _readIndex = ValueNotifier(-1);
+  late int _readIndex;
   late final ValueNotifier<bool> _noMore =
       ValueNotifier(_pageInitialData.isEmpty || _pageInitialData.last.$1 == 0);
+
+  final ValueNotifier<int> _unreadCount = ValueNotifier(0);
+
+  late int _messageMaxIndex;
 
   late int moreMessageNumber;
 
@@ -33,7 +37,7 @@ class TopicChatData {
   late final _oldMaxIndex =
       _pageInitialData.isEmpty ? -1 : _pageInitialData.first.$1;
 
-  late final ValueNotifier _emptyMessage =
+  late final ValueNotifier<bool> _emptyMessage =
       ValueNotifier(_pageInitialData.isEmpty);
 
   late final StreamController<List<(int, ChatMessage)>>
@@ -54,6 +58,9 @@ class TopicChatData {
     final newMessages = value.mapIndexed(
         (index, message) => (index + accumulatedMaxIndex + 1, message.$2));
 
+    _unreadCount.value = newMessages.last.$1 - _readIndex;
+    _messageMaxIndex = newMessages.last.$1;
+
     return [...accumulated, ...newMessages];
   }, []);
 
@@ -70,16 +77,18 @@ class TopicChatData {
 
   TopicChatData(this.topic, this._mqttMessageStream,
       {this.preloadCount = 20, this.moreMessageNumber = 30}) {
-    _readIndex.value = Hive.box(readBox).get(key, defaultValue: -1);
+    _readIndex = Hive.box(readBox).get(key, defaultValue: -1);
     final length = Hive.box<ChatMessage>(key).length;
 
     final normalBegin = length > preloadCount ? length - preloadCount : 0;
 
-    skipCount = _readIndex.value - normalBegin > -10
+    skipCount = _readIndex - normalBegin > -10
         ? normalBegin
-        : _readIndex.value > 10
-            ? _readIndex.value - 10
+        : _readIndex > 10
+            ? _readIndex - 10
             : 0;
+
+    _messageMaxIndex = length - 1;
 
     if (pageInitialData.isEmpty) {
       _addEmptyMqttMessageStreamSubscription();
@@ -91,8 +100,9 @@ class TopicChatData {
   }
 
   void changeReadIndex(int index) {
-    if (index > _readIndex.value) {
-      _readIndex.value = index;
+    if (index > _readIndex) {
+      _readIndex = index;
+      _unreadCount.value = _messageMaxIndex - _readIndex;
       Hive.box(readBox).put(key, index);
     }
   }
@@ -150,22 +160,24 @@ class TopicChatData {
     await Hive.box<ChatMessage>(key).clear();
     await Hive.box(readBox).put(key, -1);
     skipCount = 0;
-    _readIndex.value = 0;
+    _readIndex = 0;
     _remove = true;
     _noMore.value = true;
+    _unreadCount.value = 0;
+    _messageMaxIndex = 0;
     _pageInitialData = [];
     _pageMessageStreamController.add([]);
     _mqttMessageStreamController.add([]);
     _addEmptyMqttMessageStreamSubscription();
   }
 
-  ValueNotifier get emptyMessage => _emptyMessage;
+  ValueNotifier<bool> get emptyMessage => _emptyMessage;
+
+  ValueNotifier<int> get unreadCount => _unreadCount;
 
   List<(int, ChatMessage)> get pageInitialData => _pageInitialData;
 
-  ValueNotifier<int> get readIndex => _readIndex;
-
-  int get readIndexValue => _readIndex.value;
+  int get readIndex => _readIndex;
 
   ValueNotifier<bool> get noMore => _noMore;
 }

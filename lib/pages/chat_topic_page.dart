@@ -10,7 +10,6 @@ import 'package:provider/provider.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../components/dashed_line_message.dart';
-import '../components/detect_lifecycle.dart';
 import '../components/system_overlay_style_with_brightness.dart';
 import '../data/chat_message.dart';
 import '../data/client_param.dart';
@@ -26,49 +25,65 @@ class ChatTopicPage extends StatefulWidget {
   State<ChatTopicPage> createState() => _ChatTopicPageState();
 }
 
-class _ChatTopicPageState extends State<ChatTopicPage> {
+class _ChatTopicPageState extends State<ChatTopicPage>
+    with WidgetsBindingObserver {
   late final TextEditingController _inputController;
 
   final GlobalKey _centerKey = GlobalKey();
   final GlobalKey _appBarKey = GlobalKey();
 
-  int preloadCount = 40;
+  final int _preloadCount = 40;
 
-  ScrollController messagesListController = ScrollController();
+  final ScrollController _messagesListController = ScrollController();
 
-  late TopicChatData topicChatData = TopicChatData(
+  late final TopicChatData _topicChatData = TopicChatData(
       widget.topic, context.read<Client>().messagesByTopicStream(widget.topic),
-      preloadCount: preloadCount);
+      preloadCount: _preloadCount);
 
   late double _anchor = 0;
 
   final double _bottomHeight = 80;
 
-  double bodyHeight = 0.0;
+  late final int _initialReadIndex = _topicChatData.readIndex;
 
-  late int openReadIndex = topicChatData.readIndexValue;
+  AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
+
+  final ValueNotifier<bool> _unreadCountIntercept = ValueNotifier<bool>(false);
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _lifecycleState = state;
+    if (state != AppLifecycleState.resumed) {
+      context.read<Client>().currentTopic = null;
+    } else {
+      context.read<Client>().currentTopic = widget.topic;
+    }
+  }
 
   @override
   void initState() {
+    WidgetsBinding.instance.addObserver(this);
     super.initState();
     _inputController = TextEditingController();
     _inputController.addListener(() {
       setState(() {});
     });
 
-    if (topicChatData.pageInitialData.isNotEmpty) {
+    context.read<Client>().currentTopic = widget.topic;
+
+    if (_topicChatData.pageInitialData.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
         final minScrollExtent =
-            -messagesListController.position.minScrollExtent;
+            -_messagesListController.position.minScrollExtent;
 
         final appBarContext = _appBarKey.currentContext as StatefulElement?;
 
         final bodyHeight = MediaQuery.of(context).size.height -
             (appBarContext!.size!.height +
                 _bottomHeight +
-                MediaQuery.of(context).padding.bottom);
+                MediaQuery.of(context).padding.bottom) -
+            0.01;
 
-        this.bodyHeight = bodyHeight - 0.01;
         if (minScrollExtent < bodyHeight && minScrollExtent > 0) {
           setState(() {
             _anchor = (minScrollExtent / bodyHeight) + 0.0000000000000001;
@@ -79,13 +94,34 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
           });
         }
 
-        messagesListController.jumpTo(0);
+        _messagesListController.jumpTo(0);
+
+        _messagesListController.position.isScrollingNotifier.addListener(() {
+          if (!_messagesListController.position.isScrollingNotifier.value) {
+            debugPrint('scroll is stopped');
+          } else {
+            debugPrint('scroll is started');
+          }
+        });
       });
     }
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+  }
+
+  @override
+  void deactivate() {
+    super.deactivate();
+    context.read<Client>().currentTopic = null;
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _messagesListController.dispose();
     _inputController.dispose();
     super.dispose();
   }
@@ -136,7 +172,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
               IconButton(
                 icon: const Icon(Icons.delete_outline),
                 onPressed: () {
-                  topicChatData.removeAll();
+                  _topicChatData.removeAll();
                   setState(() {
                     _anchor = 0;
                   });
@@ -169,24 +205,30 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
 
   Widget _buildBody(BuildContext context) {
     return ValueListenableBuilder(
-        valueListenable: topicChatData.emptyMessage,
+        valueListenable: _topicChatData.emptyMessage,
         builder: (BuildContext context, empty, Widget? child) {
           return AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               child: empty
                   ? _buildNoDataBody(context)
-                  : _buildHasDataBody(context));
+                  : _buildHasDataBody(context),
+              transitionBuilder: (child, animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: child,
+                );
+              });
         });
   }
 
   Widget _buildHasDataBody(BuildContext context) {
     return ValueListenableBuilder(
-      valueListenable: topicChatData.noMore,
+      valueListenable: _topicChatData.noMore,
       builder: (BuildContext context, bool noMore, Widget? child) {
         return EasyRefresh(
           key: const ValueKey("HasDataBody"),
           clipBehavior: Clip.none,
-          onRefresh: noMore ? null : topicChatData.loadMore,
+          onRefresh: noMore ? null : _topicChatData.loadMore,
           header: BuilderHeader(
               triggerOffset: 40,
               clamping: false,
@@ -220,21 +262,108 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
           child: child,
         );
       },
-      child: CustomScrollView(
-        key: const ValueKey("MessagesList"),
-        controller: messagesListController,
-        center: _centerKey,
-        anchor: _anchor,
-        slivers: [
-          _buildPageMessagesList(context),
-          SliverPadding(
-            padding: EdgeInsets.zero,
-            key: _centerKey,
-          ),
-          _buildMqttMessagesList(context),
-        ],
-      ),
+      child: Stack(children: [
+        CustomScrollView(
+          key: const ValueKey("MessagesList"),
+          controller: _messagesListController,
+          center: _centerKey,
+          anchor: _anchor,
+          slivers: [
+            _buildPageMessagesList(context),
+            SliverPadding(
+              padding: EdgeInsets.zero,
+              key: _centerKey,
+            ),
+            _buildMqttMessagesList(context),
+          ],
+        ),
+        Positioned(bottom: 10, right: 10, child: _buildUnReadCount(context)),
+      ]),
     );
+  }
+
+  Widget _buildUnReadCount(BuildContext context) {
+    return ChangeNotifierProvider.value(
+        value: _messagesListController,
+        builder: (context, child) {
+          return ValueListenableBuilder<int>(
+            valueListenable: _topicChatData.unreadCount,
+            builder: (BuildContext context, int count, Widget? child) {
+              return Selector<ScrollController, bool>(
+                  builder:
+                      (BuildContext context, bool scrollMax, Widget? child) {
+                    return ValueListenableBuilder<bool>(
+                      valueListenable: _unreadCountIntercept,
+                      builder: (BuildContext context, bool intercept,
+                          Widget? child) {
+                        debugPrint(
+                            "count: $count, scrollMax: $scrollMax,intercept: $intercept,all: ${(count == 0 && scrollMax) || intercept}");
+                        return AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: (count == 0 && scrollMax) || intercept
+                                ? const SizedBox(
+                                    key: ValueKey("UnreadCountHide"),
+                                  )
+                                : ElevatedButton.icon(
+                                    key: const ValueKey("UnreadCountShow"),
+                                    onPressed: () {
+                                      _messagesListController.animateTo(
+                                        _messagesListController
+                                            .position.maxScrollExtent,
+                                        duration:
+                                            const Duration(milliseconds: 300),
+                                        curve: Curves.easeOut,
+                                      );
+                                    },
+                                    icon: const Icon(
+                                        Icons.arrow_downward_outlined),
+                                    label: AnimatedSwitcher(
+                                        duration:
+                                            const Duration(milliseconds: 300),
+                                        child: SizedBox(
+                                          key: ValueKey(count),
+                                          width: 40,
+                                          child: Center(
+                                            child: Text(
+                                              count == 0
+                                                  ? "Down"
+                                                  : count.toString(),
+                                              key: ValueKey(count),
+                                            ),
+                                          ),
+                                        ),
+                                        transitionBuilder: (child, animation) {
+                                          return ScaleTransition(
+                                            scale: animation,
+                                            child: child,
+                                          );
+                                        }),
+                                  ),
+                            transitionBuilder: (child, animation) {
+                              return SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0, 1), // Start position
+                                  end: Offset.zero, // End position
+                                ).animate(animation),
+                                child: FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
+                              );
+                            });
+                      },
+                    );
+                  },
+                  selector: (BuildContext context,
+                          ScrollController scrollController) =>
+                      (_messagesListController.position.hasContentDimensions &&
+                          _messagesListController.offset >=
+                              _messagesListController
+                                  .position.maxScrollExtent) ||
+                      !_messagesListController.position.hasContentDimensions);
+            },
+          );
+        });
   }
 
   Widget _buildNoDataBody(BuildContext context) {
@@ -261,8 +390,8 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
 
   Widget _buildPageMessagesList(BuildContext context) {
     return StreamProvider<List<(int, ChatMessage)>>.value(
-      initialData: topicChatData.pageInitialData,
-      value: topicChatData.pageMessageStream,
+      initialData: _topicChatData.pageInitialData,
+      value: _topicChatData.pageMessageStream,
       child: Consumer<List<(int, ChatMessage)>>(
         builder: (context, messages, child) {
           return SliverList.builder(
@@ -281,26 +410,29 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
   Widget _buildMqttMessagesList(BuildContext context) {
     return StreamProvider<List<(int, ChatMessage)>>.value(
       initialData: const [],
-      value: topicChatData.mqttMessageStream,
+      value: _topicChatData.mqttMessageStream,
       child: Consumer<List<(int, ChatMessage)>>(
         builder: (context, messages, child) {
-          return DetectLifecycleScrollTo(
-            scroll: () async {
-              WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-                messagesListController.animateTo(
-                  messagesListController.position.maxScrollExtent,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOut,
-                );
-              });
+          if (_messagesListController.position.hasContentDimensions &&
+              _messagesListController.offset + 200 >
+                  (_messagesListController.position.maxScrollExtent) &&
+              _lifecycleState == AppLifecycleState.resumed) {
+            WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
+              _unreadCountIntercept.value = true;
+              await _messagesListController.animateTo(
+                _messagesListController.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+              );
+            });
+          }
+
+          return SliverList.builder(
+            itemCount: messages.length,
+            itemBuilder: (context, index) {
+              final message = messages[index];
+              return _buildMessageCard(context, message.$2, message.$1);
             },
-            child: SliverList.builder(
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final message = messages[index];
-                return _buildMessageCard(context, message.$2, message.$1);
-              },
-            ),
           );
         },
       ),
@@ -317,7 +449,10 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
         if (info.visibleFraction == 0) {
           return;
         }
-        topicChatData.changeReadIndex(hiveIndex);
+        if (!_messagesListController.position.isScrollingNotifier.value) {
+          _unreadCountIntercept.value = false;
+        }
+        _topicChatData.changeReadIndex(hiveIndex);
       },
       child: Column(
         children: [
@@ -409,7 +544,7 @@ class _ChatTopicPageState extends State<ChatTopicPage> {
                   )),
             ),
           ),
-          if (hiveIndex == openReadIndex && storingData)
+          if (hiveIndex == _initialReadIndex && storingData)
             const DashedLineMessage(),
         ],
       ),

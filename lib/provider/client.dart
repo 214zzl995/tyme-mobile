@@ -25,6 +25,12 @@ class Client with ChangeNotifier {
 
   String? _errorHint;
 
+  /// 控制当前路由 当前路由的消息不显示消息
+  SubscribeTopic? _currentTopic;
+
+  /// 缓存未读消息数量 用于显示未读消息数
+  Map<SubscribeTopic, int> _topicUnread = {};
+
   @override
   void dispose() {
     disposeState = true;
@@ -113,8 +119,17 @@ class Client with ChangeNotifier {
         for (var message in c) {
           final chatMessage = message.toChatMessage(_clientParam);
           await chatMessage.insert();
-          if (chatMessage.sender != _clientParam.clientId) {
+          if (chatMessage.sender != _clientParam.clientId &&
+              _currentTopic?.topic != chatMessage.topic.header.topic &&
+              _currentTopic?.qos != chatMessage.topic.header.qos) {
             chatMessage.showNotification();
+          }
+
+          if (_topicUnread.containsKey(chatMessage.topic)) {
+            _topicUnread[chatMessage.topic.header] =
+                _topicUnread[chatMessage.topic]! + 1;
+          } else {
+            _topicUnread[chatMessage.topic.header] = 1;
           }
         }
       });
@@ -225,13 +240,17 @@ class Client with ChangeNotifier {
     }
   }
 
+  set currentTopic(SubscribeTopic? topic) {
+    _currentTopic = topic;
+  }
+
   MqttConnectionState get clientStatus => _clientStatus;
 
   MqttConnectionStatus? get connectionStatus => mqttClient.connectionStatus;
 
   ClientParam get clientParam => _clientParam;
 
-  String? get errorHint => _errorHint ?? connectionStatus?.reasonString ;
+  String? get errorHint => _errorHint ?? connectionStatus?.reasonString;
 }
 
 setCertificate(ClientSecurityParam clientSecurityParam) {
