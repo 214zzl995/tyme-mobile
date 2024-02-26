@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive/hive.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
@@ -128,8 +129,8 @@ extension ChatMqttMessage on MqttReceivedMessage<MqttMessage> {
     message.sender = sender;
 
     final receiver = userProperty
-            .firstWhere((element) => element.pairName == "receiver")
-            .pairValue ??
+            .firstWhereOrNull((element) => element.pairName == "receiver")
+            ?.pairValue ??
         "";
 
     message.receiver = receiver;
